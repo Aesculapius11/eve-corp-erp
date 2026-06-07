@@ -148,6 +148,6 @@ class HangarRepository @Inject constructor(
  * Hangar 本身 = Division 1
  */
 private fun mapFlagToDivision(flag: String): Int {
-    val match = Regex("CorpSAG(\d+)").find(flag)
+    val match = Regex("""CorpSAG(\d+)""").find(flag)
     return match?.groupValues?.get(1)?.toIntOrNull() ?: 1
 }
