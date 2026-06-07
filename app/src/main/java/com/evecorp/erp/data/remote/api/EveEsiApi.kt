@@ -2,8 +2,10 @@ package com.evecorp.erp.data.remote.api
 
 import com.evecorp.erp.data.remote.dto.*
 import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -60,7 +62,7 @@ interface EveEsiApi {
     // --- Universe ---
     @POST("universe/names/")
     suspend fun postUniverseNames(
-        @retrofit2.http.Body typeIds: List<Long>
+        @Body typeIds: List<Long>
     ): Response<List<UniverseNameDto>>
 
     // --- Character roles ---
