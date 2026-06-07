@@ -19,16 +19,18 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // ESI OAuth
         buildConfigField("String", "ESI_CLIENT_ID", "\"${project.findProperty("ESI_CLIENT_ID") ?: ""}\"")
-        buildConfigField("String", "ESI_CALLBACK_URL", "\"${project.findProperty("ESI_CALLBACK_URL") ?: "eveauth://callback\"}\"")
+        buildConfigField("String", "ESI_CALLBACK_URL", "\"${project.findProperty("ESI_CALLBACK_URL") ?: "eveauth://callback"}\"")
     }
 
     signingConfigs {
+        getByName("debug") {
+            // default debug keystore
+        }
         create("release") {
-            val keystoreFile = System.getenv("KEYSTORE_FILE")
-            if (keystoreFile != null && file(keystoreFile).exists()) {
-                storeFile = file(keystoreFile)
+            val ksFile = System.getenv("KEYSTORE_FILE")
+            if (ksFile != null && file(ksFile).exists()) {
+                storeFile = file(ksFile)
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
@@ -37,6 +39,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            isDebuggable = true
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -44,8 +49,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            val keystoreFile = System.getenv("KEYSTORE_FILE")
-            if (keystoreFile != null && file(keystoreFile).exists()) {
+            val ksFile = System.getenv("KEYSTORE_FILE")
+            if (ksFile != null && file(ksFile).exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
