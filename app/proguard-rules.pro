@@ -35,3 +35,9 @@
 
 # WorkManager
 -keep class com.evecorp.erp.sync.SyncWorker { *; }
+
+# Google Tink / security-crypto
+-dontwarn com.google.errorprone.annotations.**
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn javax.annotation.**
+-dontwarn org.checkerframework.**
