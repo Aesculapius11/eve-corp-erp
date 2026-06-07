@@ -38,6 +38,10 @@
 
 # Google Tink / security-crypto
 -dontwarn com.google.errorprone.annotations.**
--keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.api.client.http.**
+-dontwarn com.google.api.client.util.**
+-dontwarn org.joda.time.**
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**
+-keep class com.google.crypto.tink.** { *; }
+-keep class com.google.api.client.** { *; }
