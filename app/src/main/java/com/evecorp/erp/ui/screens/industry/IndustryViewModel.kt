@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.data.local.entity.IndustryJobEntity
-import com.evecorp.erp.data.repository.IndustryJobRepository
+import com.evecorp.erp.data.repository.IndustryRepository
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -27,7 +27,7 @@ enum class IndustryTab(val label: String, val activity: String?) {
 @HiltViewModel
 class IndustryViewModel @Inject constructor(
     private val tokenManager: TokenManager,
-    private val industryJobRepository: IndustryJobRepository
+    private val industryRepository: IndustryRepository
 ) : ViewModel() {
 
     private val corpId: Long get() = tokenManager.corporationId
@@ -35,7 +35,7 @@ class IndustryViewModel @Inject constructor(
 
     val uiState: StateFlow<IndustryUiState> = combine(
         _selectedTab,
-        industryJobRepository.getActiveJobs(corpId)
+        industryRepository.getActiveJobs(corpId)
     ) { tab, allJobs ->
         val filtered = if (tab.activity != null) {
             allJobs.filter { it.activityType == tab.activity }
@@ -52,7 +52,7 @@ class IndustryViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            industryJobRepository.syncJobs(corpId)
+            industryRepository.syncJobs(corpId)
         }
     }
 }

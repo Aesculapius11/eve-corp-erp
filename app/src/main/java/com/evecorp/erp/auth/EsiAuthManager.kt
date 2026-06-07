@@ -3,6 +3,7 @@ package com.evecorp.erp.auth
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import com.evecorp.erp.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,7 @@ class EsiAuthManager @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) {
     companion object {
+        private const val TAG = "EsiAuth"
         private const val ESI_AUTH_URL = "https://login.eveonline.com/v2/oauth/authorize"
         private const val ESI_TOKEN_URL = "https://login.eveonline.com/v2/oauth/token"
         private const val ESI_VERIFY_URL = "https://login.eveonline.com/oauth/verify"
@@ -53,7 +55,10 @@ class EsiAuthManager @Inject constructor(
     }
 
     suspend fun handleCallback(code: String, state: String): Boolean {
-        if (state != currentState) return false
+        if (state != currentState) {
+            Log.w(TAG, "State mismatch: expected=$currentState, got=$state")
+            return false
+        }
 
         return withContext(Dispatchers.IO) {
             try {
@@ -82,9 +87,11 @@ class EsiAuthManager @Inject constructor(
                     verifyToken(accessToken)
                     true
                 } else {
+                    Log.e(TAG, "Token exchange failed: ${response.code} ${response.body?.string()}")
                     false
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "handleCallback exception", e)
                 false
             }
         }
@@ -93,18 +100,44 @@ class EsiAuthManager @Inject constructor(
     private suspend fun verifyToken(token: String) {
         withContext(Dispatchers.IO) {
             try {
-                val request = Request.Builder()
+                val verifyRequest = Request.Builder()
                     .url(ESI_VERIFY_URL)
                     .header("Authorization", "Bearer $token")
                     .build()
 
-                val response = okHttpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val json = JSONObject(response.body!!.string())
-                    tokenManager.characterId = json.getLong("CharacterID")
-                    tokenManager.characterName = json.getString("CharacterName")
+                val verifyResponse = okHttpClient.newCall(verifyRequest).execute()
+                if (verifyResponse.isSuccessful) {
+                    val verifyJson = JSONObject(verifyResponse.body!!.string())
+                    val charId = verifyJson.getLong("CharacterID")
+                    val charName = verifyJson.getString("CharacterName")
+
+                    tokenManager.characterId = charId
+                    tokenManager.characterName = charName
+
+                    // 获取 corporation_id
+                    fetchCorporationId(token, charId)
                 }
             } catch (_: Exception) { }
+        }
+    }
+
+    private fun fetchCorporationId(token: String, characterId: Long) {
+        try {
+            val charUrl = "https://esi.evetech.net/latest/characters/$characterId/"
+            val request = Request.Builder()
+                .url(charUrl)
+                .header("Authorization", "Bearer $token")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val json = JSONObject(response.body!!.string())
+                tokenManager.corporationId = json.getLong("corporation_id")
+            } else {
+                Log.e(TAG, "fetchCorporationId failed: ${response.code}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchCorporationId exception", e)
         }
     }
 }

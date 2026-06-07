@@ -7,6 +7,7 @@ import com.evecorp.erp.data.local.entity.WalletJournalEntity
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.dto.WalletBalanceDto
 import com.evecorp.erp.data.remote.dto.WalletJournalDto
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import javax.inject.Inject
@@ -48,19 +49,33 @@ class WalletRepository @Inject constructor(
     suspend fun syncJournal(corpId: Long, division: Int = 1): Result<Unit> {
         return try {
             val maxId = walletJournalDao.getMaxId(corpId)
-            val response = esiApi.getWalletJournal(corpId, division)
-            if (response.isSuccessful) {
-                val entries = response.body() ?: emptyList()
-                val newEntries = entries
-                    .filter { maxId == null || it.id > maxId }
-                    .map { it.toEntity(corpId, division) }
-                if (newEntries.isNotEmpty()) {
-                    walletJournalDao.insertAll(newEntries)
+            val allEntries = mutableListOf<com.evecorp.erp.data.remote.dto.WalletJournalDto>()
+            var page = 1
+            var totalPages = 1
+
+            while (page <= totalPages) {
+                if (page > 1) delay(150L)
+                val response = esiApi.getWalletJournal(corpId, division, page)
+                if (response.isSuccessful) {
+                    response.body()?.let { allEntries.addAll(it) }
+                    totalPages = response.headers()["X-Pages"]?.toIntOrNull() ?: 1
+                    page++
+                } else if (response.code() == 429) {
+                    val retryAfter = response.headers()["Retry-After"]?.toLongOrNull() ?: 10
+                    delay(retryAfter * 1000)
+                    continue
+                } else {
+                    return Result.failure(Exception("ESI error: ${response.code()}"))
                 }
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception("ESI error: ${response.code()}"))
             }
+
+            val newEntries = allEntries
+                .filter { maxId == null || it.id > maxId }
+                .map { it.toEntity(corpId, division) }
+            if (newEntries.isNotEmpty()) {
+                walletJournalDao.insertAll(newEntries)
+            }
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

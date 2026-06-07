@@ -2,6 +2,7 @@ package com.evecorp.erp.ui.screens.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.evecorp.erp.Constants
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.data.local.entity.CorporationBillEntity
 import com.evecorp.erp.data.local.entity.SystemCostIndexEntity
@@ -33,19 +34,22 @@ class DashboardViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val corpId: Long get() = tokenManager.corporationId
+    private val _isRefreshing = MutableStateFlow(false)
 
-    val uiState: StateFlow<DashboardUiState> = combine(
+    private val dataState: StateFlow<DashboardUiState> = combine(
         walletRepository.getBalance(corpId).map { it?.let { UiState.Success(it) } ?: UiState.Loading },
         walletRepository.getRecentJournal(corpId).map { UiState.Success(it) },
-        industryRepository.getCostIndex(HAAJINEN_SYSTEM_ID).map { it?.let { UiState.Success(it) } ?: UiState.Loading },
+        industryRepository.getCostIndex(Constants.HAAJINEN_SYSTEM_ID).map { it?.let { UiState.Success(it) } ?: UiState.Loading },
         corporationBillRepository.getUnpaid(corpId).map { UiState.Success(it) }
     ) { balance, journal, costIndex, bills ->
-        DashboardUiState(
-            balance = balance,
-            journal = journal,
-            costIndex = costIndex,
-            bills = bills
-        )
+        DashboardUiState(balance = balance, journal = journal, costIndex = costIndex, bills = bills)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
+
+    val uiState: StateFlow<DashboardUiState> = combine(
+        dataState,
+        _isRefreshing
+    ) { state, refreshing ->
+        state.copy(isRefreshing = refreshing)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
     fun refresh() {
@@ -53,15 +57,11 @@ class DashboardViewModel @Inject constructor(
             _isRefreshing.value = true
             walletRepository.syncBalance(corpId)
             walletRepository.syncJournal(corpId)
-            industryRepository.syncCostIndices(listOf(HAAJINEN_SYSTEM_ID))
+            industryRepository.syncCostIndices(listOf(Constants.HAAJINEN_SYSTEM_ID))
             corporationBillRepository.syncBills(corpId)
             _isRefreshing.value = false
         }
     }
 
-    private val _isRefreshing = MutableStateFlow(false)
 
-    companion object {
-        const val HAAJINEN_SYSTEM_ID = 30001424L
-    }
 }

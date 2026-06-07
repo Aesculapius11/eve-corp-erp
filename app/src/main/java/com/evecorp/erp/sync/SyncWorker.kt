@@ -3,10 +3,14 @@ package com.evecorp.erp.sync
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
+import com.evecorp.erp.Constants
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.data.repository.*
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -16,7 +20,6 @@ class SyncWorker @AssistedInject constructor(
     private val tokenManager: TokenManager,
     private val walletRepository: WalletRepository,
     private val industryRepository: IndustryRepository,
-    private val industryJobRepository: IndustryJobRepository,
     private val marketRepository: MarketRepository,
     private val corporationBillRepository: CorporationBillRepository,
     private val hangarRepository: HangarRepository
@@ -28,20 +31,25 @@ class SyncWorker @AssistedInject constructor(
         val corpId = tokenManager.corporationId
 
         return try {
-            // Sync in parallel where possible
-            walletRepository.syncBalance(corpId)
-            walletRepository.syncJournal(corpId)
-            industryRepository.syncCostIndices(listOf(HAAJINEN_SYSTEM_ID))
-            industryJobRepository.syncJobs(corpId)
-            marketRepository.syncOrders(corpId)
-            corporationBillRepository.syncBills(corpId)
+            coroutineScope {
+                // 并行同步各模块
+                val jobs = listOf(
+                    async { walletRepository.syncBalance(corpId) },
+                    async { walletRepository.syncJournal(corpId) },
+                    async { industryRepository.syncCostIndices(listOf(Constants.HAAJINEN_SYSTEM_ID)) },
+                    async { industryRepository.syncJobs(corpId) },
+                    async { marketRepository.syncOrders(corpId) },
+                    async { corporationBillRepository.syncBills(corpId) }
+                )
+                jobs.awaitAll()
 
-            // Hangar syncs less frequently (ESI cache = 1 hour)
-            val lastHangarSync = inputData.getLong(KEY_LAST_HANGAR_SYNC, 0)
-            val now = System.currentTimeMillis()
-            if (now - lastHangarSync > 3600_000) {
-                hangarRepository.syncDivisions(corpId)
-                hangarRepository.syncAssets(corpId)
+                // Hangar syncs less frequently (ESI cache = 1 hour)
+                val lastHangarSync = inputData.getLong(KEY_LAST_HANGAR_SYNC, 0)
+                val now = System.currentTimeMillis()
+                if (now - lastHangarSync > 3600_000) {
+                    hangarRepository.syncDivisions(corpId)
+                    hangarRepository.syncAssets(corpId)
+                }
             }
 
             Result.success()
@@ -53,7 +61,7 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "eve_corp_sync"
-        const val HAAJINEN_SYSTEM_ID = 30001424L
+
         const val KEY_LAST_HANGAR_SYNC = "last_hangar_sync"
 
         fun createPeriodicRequest(): PeriodicWorkRequest {

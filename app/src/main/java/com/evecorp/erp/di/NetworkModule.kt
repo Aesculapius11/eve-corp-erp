@@ -3,7 +3,6 @@ package com.evecorp.erp.di
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.interceptor.EsiAuthInterceptor
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,8 +23,23 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideMoshi(): Moshi {
+        // 使用 KSP codegen，不需要反射 adapter
         return Moshi.Builder()
-            .addLast(KotlinJsonAdapterFactory())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @javax.inject.Named("plain")
+    fun providePlainOkHttpClient(): OkHttpClient {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BASIC
+        }
+        return OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 

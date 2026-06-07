@@ -38,19 +38,19 @@ class TokenManager @Inject constructor(
 
     fun getAccessToken(): String? = prefs.getString(KEY_ACCESS_TOKEN, null)
 
+    fun getRefreshToken(): String? = prefs.getString(KEY_REFRESH_TOKEN, null)
+
+    fun isTokenExpired(): Boolean {
+        val expiry = prefs.getLong(KEY_TOKEN_EXPIRY, 0)
+        return System.currentTimeMillis() >= expiry - 60_000 // 提前 1 分钟判定过期
+    }
+
     fun saveTokens(accessToken: String, refreshToken: String, expiresIn: Int) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, accessToken)
             .putString(KEY_REFRESH_TOKEN, refreshToken)
             .putLong(KEY_TOKEN_EXPIRY, System.currentTimeMillis() + expiresIn * 1000L)
             .apply()
-    }
-
-    fun refreshAccessToken(): String? {
-        // TODO: Implement OAuth token refresh with ESI
-        // POST https://login.eveonline.com/v2/oauth/token
-        // grant_type=refresh_token&refresh_token={token}
-        return null
     }
 
     fun isLoggedIn(): Boolean = getAccessToken() != null && characterId > 0

@@ -7,7 +7,9 @@ import com.evecorp.erp.data.local.entity.CorporationDivisionEntity
 import com.evecorp.erp.data.local.entity.HangarItemEntity
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.dto.HangarItemDto
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -66,11 +68,16 @@ class HangarRepository @Inject constructor(
             var totalPages = 1
 
             while (page <= totalPages) {
+                if (page > 1) delay(150L)
                 val response = esiApi.getAssets(corpId, page = page)
                 if (response.isSuccessful) {
                     response.body()?.let { allItems.addAll(it) }
                     totalPages = response.headers()["X-Pages"]?.toIntOrNull() ?: 1
                     page++
+                } else if (response.code() == 429) {
+                    val retryAfter = response.headers()["Retry-After"]?.toLongOrNull() ?: 10
+                    delay(retryAfter * 1000)
+                    continue
                 } else {
                     return Result.failure(Exception("ESI error: ${response.code()}"))
                 }
@@ -79,14 +86,18 @@ class HangarRepository @Inject constructor(
             // Clear and re-insert
             hangarItemDao.deleteAll()
 
-            // Group by location_flag to map to divisions
-            val divisionMap = mutableMapOf<String, Long>()
-            // TODO: Map location_flag to division_id properly
+            // 获取当前 Division 列表用于映射
+            val divisions = corporationDivisionDao.getAll().first()
+            val divisionByFlag = divisions.associate { "CorpSAG${it.divisionKey}" to it.divisionId }
 
             val entities = allItems.map { item ->
+                val divId = divisionByFlag[item.locationFlag]
+                    ?: divisionByFlag["CorpSAG${mapFlagToDivision(item.locationFlag)}"]
+                    ?: divisions.firstOrNull()?.divisionId
+                    ?: 1L
                 HangarItemEntity(
                     itemId = item.itemId,
-                    divisionId = 1, // TODO: proper mapping
+                    divisionId = divId,
                     typeId = item.typeId,
                     quantity = item.quantity,
                     locationFlag = item.locationFlag
@@ -129,4 +140,14 @@ class HangarRepository @Inject constructor(
 
     suspend fun getTypeName(typeId: Long): String =
         typeNameCacheDao.getName(typeId) ?: "Unknown ($typeId)"
+}
+
+/**
+ * 根据 location_flag 推测 division 编号。
+ * EVE 中 CorpSAG1=Division1, ... CorpSAG7=Division7
+ * Hangar 本身 = Division 1
+ */
+private fun mapFlagToDivision(flag: String): Int {
+    val match = Regex("CorpSAG(\d+)").find(flag)
+    return match?.groupValues?.get(1)?.toIntOrNull() ?: 1
 }

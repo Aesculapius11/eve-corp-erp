@@ -4,6 +4,7 @@ import com.evecorp.erp.data.local.dao.MarketOrderDao
 import com.evecorp.erp.data.local.entity.MarketOrderEntity
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.dto.MarketOrderDto
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import javax.inject.Inject
@@ -27,11 +28,16 @@ class MarketRepository @Inject constructor(
             var totalPages = 1
 
             while (page <= totalPages) {
+                if (page > 1) delay(150L)
                 val response = esiApi.getMarketOrders(corpId, page = page)
                 if (response.isSuccessful) {
                     response.body()?.let { allOrders.addAll(it) }
                     totalPages = response.headers()["X-Pages"]?.toIntOrNull() ?: 1
                     page++
+                } else if (response.code() == 429) {
+                    val retryAfter = response.headers()["Retry-After"]?.toLongOrNull() ?: 10
+                    delay(retryAfter * 1000)
+                    continue
                 } else {
                     return Result.failure(Exception("ESI error: ${response.code()}"))
                 }
