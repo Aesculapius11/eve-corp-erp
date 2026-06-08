@@ -21,6 +21,9 @@ class MarketRepository @Inject constructor(
     fun getActiveBuyOrders(corpId: Long): Flow<List<MarketOrderEntity>> =
         marketOrderDao.getActiveBuyOrders(corpId)
 
+    fun getAllActiveOrders(): Flow<List<MarketOrderEntity>> =
+        marketOrderDao.getAllActiveOrders()
+
     suspend fun syncOrders(corpId: Long): Result<Unit> {
         return try {
             val allOrders = mutableListOf<MarketOrderDto>()
@@ -46,6 +49,22 @@ class MarketRepository @Inject constructor(
             marketOrderDao.deleteAll(corpId)
             marketOrderDao.insertAll(allOrders.map { it.toEntity(corpId) })
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun syncCharacterOrders(characterId: Long): Result<Unit> {
+        return try {
+            val response = esiApi.getCharacterOrders(characterId)
+            if (response.isSuccessful) {
+                val orders = response.body() ?: emptyList()
+                // 个人订单 corporationId 设为 0 区分
+                marketOrderDao.insertAll(orders.map { it.toEntity(0) })
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("ESI error: ${response.code()}"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

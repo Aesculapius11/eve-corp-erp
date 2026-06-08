@@ -39,10 +39,11 @@ class MarketViewModel @Inject constructor(
     val uiState: StateFlow<MarketUiState> = combine(
         _selectedTab,
         _searchQuery,
-        marketRepository.getActiveSellOrders(corpId),
-        marketRepository.getActiveBuyOrders(corpId),
+        marketRepository.getAllActiveOrders(),
         _syncError
-    ) { tab, query, sellOrders, buyOrders, error ->
+    ) { tab, query, allOrders, error ->
+        val sellOrders = allOrders.filter { !it.isBuyOrder }
+        val buyOrders = allOrders.filter { it.isBuyOrder }
         val filteredSell = filterOrders(sellOrders, query)
         val filteredBuy = filterOrders(buyOrders, query)
         MarketUiState(
@@ -65,8 +66,13 @@ class MarketViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _syncError.value = null
+            // 同步公司订单
             marketRepository.syncOrders(corpId).onFailure { e ->
-                _syncError.value = e.message ?: "同步失败"
+                _syncError.value = "公司订单: ${e.message}"
+            }
+            // 同步个人订单
+            marketRepository.syncCharacterOrders(tokenManager.characterId).onFailure { e ->
+                _syncError.value = (_syncError.value?.plus("; ") ?: "") + "个人订单: ${e.message}"
             }
         }
     }

@@ -27,28 +27,42 @@ class EsiAuthManager @Inject constructor(
         private const val ESI_TOKEN_URL = "https://login.eveonline.com/v2/oauth/token"
         private const val ESI_VERIFY_URL = "https://login.eveonline.com/oauth/verify"
         private val SCOPES = listOf(
-            // 角色基础
+            // 角色
             "esi-characters.read_corporation_roles.v1",
+            "esi-characters.read_standings.v1",
+            "esi-characters.read_titles.v1",
             // 军团工业
             "esi-industry.read_corporation_jobs.v1",
+            "esi-industry.read_corporation_mining.v1",
             // 军团市场
             "esi-markets.read_corporation_orders.v1",
+            // 个人市场
+            "esi-markets.read_character_orders.v1",
             // 军团钱包
             "esi-wallet.read_corporation_wallets.v1",
-            "esi-wallet.read_corporation_walletsx.v1",
             // 军团资产
             "esi-assets.read_corporation_assets.v1",
             // 军团信息
-            "esi-corporations.read_divisions.v1",
             "esi-corporations.read_corporation_membership.v1",
-            // 军团成员追踪
-            "esi-corporations.track_members.v1",
-            // 军团建筑/星堡
+            "esi-corporations.read_divisions.v1",
+            "esi-corporations.read_blueprints.v1",
+            "esi-corporations.read_contacts.v1",
+            "esi-corporations.read_container_logs.v1",
+            "esi-corporations.read_facilities.v1",
+            "esi-corporations.read_medals.v1",
+            "esi-corporations.read_standings.v1",
+            "esi-corporations.read_starbases.v1",
             "esi-corporations.read_structures.v1",
+            "esi-corporations.read_titles.v1",
+            "esi-corporations.track_members.v1",
+            // 军团账单
+            "esi-corporations.read_corporation_bills.v1",
             // 军团合同
             "esi-contracts.read_corporation_contracts.v1",
-            // 军团账单
-            "esi-corporations.read_corporation_bills.v1"
+            // 军团击� mail
+            "esi-killmails.read_corporation_killmails.v1",
+            // 建筑
+            "esi-universe.read_structures.v1"
         )
     }
 

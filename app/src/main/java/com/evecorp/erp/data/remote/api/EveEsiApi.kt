@@ -42,6 +42,11 @@ interface EveEsiApi {
         @Query("page") page: Int = 1
     ): Response<List<MarketOrderDto>>
 
+    @GET("characters/{character_id}/orders/")
+    suspend fun getCharacterOrders(
+        @Path("character_id") characterId: Long
+    ): Response<List<MarketOrderDto>>
+
     // --- Corporation ---
     @GET("corporations/{corporation_id}/bills/")
     suspend fun getBills(
