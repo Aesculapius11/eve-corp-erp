@@ -39,7 +39,7 @@ class MarketRepository @Inject constructor(
                         typeNameCacheDao.insertAll(names.map {
                             com.evecorp.erp.data.local.entity.TypeNameCacheEntity(
                                 typeId = it.id,
-                                typeName = it.name
+                                name = it.name
                             )
                         })
                     }
