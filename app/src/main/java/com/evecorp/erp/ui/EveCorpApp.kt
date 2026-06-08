@@ -73,6 +73,7 @@ fun EveCorpApp(
             composable(Screen.BILLS.route) { BillsScreen() }
             composable(Screen.SETTINGS.route) {
                 SettingsScreen(
+                    tokenManager = tokenManager,
                     onLogout = {
                         navController.navigate(Screen.LOGIN.route) {
                             popUpTo(0) { inclusive = true }
