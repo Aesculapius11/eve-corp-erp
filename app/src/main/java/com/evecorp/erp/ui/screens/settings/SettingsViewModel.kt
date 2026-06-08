@@ -44,13 +44,17 @@ class SettingsViewModel @Inject constructor(
 
             try {
                 if (corpId > 0) {
-                    val corp = esiApi.getCorporation(corpId)
-                    corpName = corp.name
-                    corp.allianceId?.let { aid ->
-                        try {
-                            val alliance = esiApi.getAlliance(aid)
-                            allianceName = alliance.name
-                        } catch (_: Exception) {}
+                    val corpResp = esiApi.getCorporation(corpId)
+                    if (corpResp.isSuccessful) {
+                        corpName = corpResp.body()?.name ?: ""
+                        corpResp.body()?.allianceId?.let { aid ->
+                            try {
+                                val allianceResp = esiApi.getAlliance(aid)
+                                if (allianceResp.isSuccessful) {
+                                    allianceName = allianceResp.body()?.name
+                                }
+                            } catch (_: Exception) {}
+                        }
                     }
                 }
             } catch (_: Exception) {}
