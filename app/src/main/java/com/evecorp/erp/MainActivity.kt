@@ -29,7 +29,8 @@ class MainActivity : ComponentActivity() {
             EveCorpTheme(darkTheme = isDarkMode) {
                 EveCorpApp(
                     esiAuthManager = esiAuthManager,
-                    tokenManager = tokenManager
+                    tokenManager = tokenManager,
+                    themeManager = themeManager
                 )
             }
         }

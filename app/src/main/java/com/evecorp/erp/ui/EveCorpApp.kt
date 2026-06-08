@@ -20,12 +20,14 @@ import com.evecorp.erp.ui.screens.industry.IndustryScreen
 import com.evecorp.erp.ui.screens.login.LoginScreen
 import com.evecorp.erp.ui.screens.market.MarketScreen
 import com.evecorp.erp.ui.screens.settings.SettingsScreen
+import com.evecorp.erp.ui.theme.ThemeManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EveCorpApp(
     esiAuthManager: EsiAuthManager,
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    themeManager: ThemeManager
 ) {
     val navController = rememberNavController()
     val isLoggedIn = tokenManager.isLoggedIn()
@@ -77,7 +79,8 @@ fun EveCorpApp(
                         navController.navigate(Screen.LOGIN.route) {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
+                    },
+                    themeManager = themeManager
                 )
             }
         }

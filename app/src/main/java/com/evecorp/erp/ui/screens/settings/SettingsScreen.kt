@@ -11,13 +11,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.evecorp.erp.ui.theme.ThemeManager
 
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
+    themeManager: ThemeManager,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isDarkMode by themeManager.isDarkMode.collectAsState(initial = null)
+    val followSystem by themeManager.followSystem.collectAsState(initial = true)
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     if (showLogoutDialog) {
@@ -95,9 +99,10 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        val scope = rememberCoroutineScope()
+
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                // 跟随系统
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -112,15 +117,16 @@ fun SettingsScreen(
                         )
                     }
                     Switch(
-                        checked = uiState.followSystem,
-                        onCheckedChange = { viewModel.setFollowSystem(it) }
+                        checked = followSystem,
+                        onCheckedChange = { checked ->
+                            scope.launch { themeManager.setFollowSystem(checked) }
+                        }
                     )
                 }
 
-                if (!uiState.followSystem) {
+                if (!followSystem) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-                    // 手动深色模式
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -135,8 +141,10 @@ fun SettingsScreen(
                             )
                         }
                         Switch(
-                            checked = uiState.isDarkMode == true,
-                            onCheckedChange = { viewModel.setDarkMode(it) }
+                            checked = isDarkMode == true,
+                            onCheckedChange = { checked ->
+                                scope.launch { themeManager.setDarkMode(checked) }
+                            }
                         )
                     }
                 }
@@ -145,7 +153,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // ── 退出按钮 ──
         OutlinedButton(
             onClick = { showLogoutDialog = true },
             modifier = Modifier.fillMaxWidth()
