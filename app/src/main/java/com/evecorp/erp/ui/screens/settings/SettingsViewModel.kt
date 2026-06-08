@@ -3,7 +3,6 @@ package com.evecorp.erp.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.evecorp.erp.auth.TokenManager
-import com.evecorp.erp.data.remote.api.EveEsiApi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,16 +13,13 @@ import javax.inject.Inject
 data class SettingsUiState(
     val characterName: String = "",
     val characterId: Long = 0,
-    val corporationName: String = "",
     val corporationId: Long = 0,
-    val allianceName: String? = null,
     val isLoading: Boolean = true
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val tokenManager: TokenManager,
-    private val esiApi: EveEsiApi
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -35,36 +31,10 @@ class SettingsViewModel @Inject constructor(
 
     private fun loadInfo() {
         viewModelScope.launch {
-            val charId = tokenManager.characterId
-            val charName = tokenManager.characterName ?: "未知"
-            val corpId = tokenManager.corporationId
-
-            var corpName = ""
-            var allianceName: String? = null
-
-            try {
-                if (corpId > 0) {
-                    val corpResp = esiApi.getCorporation(corpId)
-                    if (corpResp.isSuccessful) {
-                        corpName = corpResp.body()?.name ?: ""
-                        corpResp.body()?.allianceId?.let { aid ->
-                            try {
-                                val allianceResp = esiApi.getAlliance(aid)
-                                if (allianceResp.isSuccessful) {
-                                    allianceName = allianceResp.body()?.name
-                                }
-                            } catch (_: Exception) {}
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-
             _uiState.value = SettingsUiState(
-                characterName = charName,
-                characterId = charId,
-                corporationName = corpName,
-                corporationId = corpId,
-                allianceName = allianceName,
+                characterName = tokenManager.characterName ?: "未知",
+                characterId = tokenManager.characterId,
+                corporationId = tokenManager.corporationId,
                 isLoading = false
             )
         }

@@ -9,13 +9,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.evecorp.erp.auth.TokenManager
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SettingsScreen(
-    tokenManager: TokenManager,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     if (showLogoutDialog) {
@@ -26,7 +28,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutDialog = false
-                    tokenManager.logout()
+                    viewModel.logout()
                     onLogout()
                 }) {
                     Text("退出登录", color = MaterialTheme.colorScheme.error)
@@ -38,6 +40,13 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    if (uiState.isLoading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     Column(
@@ -56,12 +65,12 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "角色: ${tokenManager.characterName ?: "未知"}",
+            text = "角色: ${uiState.characterName}",
             style = MaterialTheme.typography.bodyLarge
         )
 
         Text(
-            text = "军团 ID: ${tokenManager.corporationId}",
+            text = "军团 ID: ${uiState.corporationId}",
             style = MaterialTheme.typography.bodyMedium
         )
 
