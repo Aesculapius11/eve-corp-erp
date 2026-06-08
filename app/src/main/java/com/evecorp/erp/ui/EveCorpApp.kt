@@ -19,6 +19,7 @@ import com.evecorp.erp.ui.screens.hangar.HangarScreen
 import com.evecorp.erp.ui.screens.industry.IndustryScreen
 import com.evecorp.erp.ui.screens.login.LoginScreen
 import com.evecorp.erp.ui.screens.market.MarketScreen
+import com.evecorp.erp.ui.screens.settings.SettingsScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +71,15 @@ fun EveCorpApp(
             composable(Screen.MARKET.route) { MarketScreen() }
             composable(Screen.HANGAR.route) { HangarScreen() }
             composable(Screen.BILLS.route) { BillsScreen() }
+            composable(Screen.SETTINGS.route) {
+                SettingsScreen(
+                    onLogout = {
+                        navController.navigate(Screen.LOGIN.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
         }
     }
 }

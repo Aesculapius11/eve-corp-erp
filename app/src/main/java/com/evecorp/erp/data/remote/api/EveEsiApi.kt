@@ -70,6 +70,24 @@ interface EveEsiApi {
     suspend fun getCharacterRoles(
         @Path("character_id") characterId: Long
     ): Response<CharacterRolesDto>
+
+    // --- Corporation info ---
+    @GET("corporations/{corporation_id}/")
+    suspend fun getCorporation(
+        @Path("corporation_id") corporationId: Long
+    ): Response<CorporationInfoDto>
+
+    // --- Alliance info ---
+    @GET("alliances/{alliance_id}/")
+    suspend fun getAlliance(
+        @Path("alliance_id") allianceId: Long
+    ): Response<AllianceInfoDto>
+
+    // --- Character info ---
+    @GET("characters/{character_id}/")
+    suspend fun getCharacter(
+        @Path("character_id") characterId: Long
+    ): Response<CharacterInfoDto>
 }
 
 

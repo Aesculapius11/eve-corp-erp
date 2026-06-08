@@ -27,11 +27,26 @@ class EsiAuthManager @Inject constructor(
         private const val ESI_TOKEN_URL = "https://login.eveonline.com/v2/oauth/token"
         private const val ESI_VERIFY_URL = "https://login.eveonline.com/oauth/verify"
         private val SCOPES = listOf(
+            // 角色基础
+            "esi-characters.read_corporation_roles.v1",
+            // 军团工业
             "esi-industry.read_corporation_jobs.v1",
+            // 军团市场
             "esi-markets.read_corporation_orders.v1",
+            // 军团钱包
             "esi-wallet.read_corporation_wallets.v1",
+            "esi-wallet.read_corporation_walletsx.v1",
+            // 军团资产
             "esi-assets.read_corporation_assets.v1",
-            "esi-corporations.read_divisions.v1"
+            // 军团信息
+            "esi-corporations.read_divisions.v1",
+            "esi-corporations.read_corporation_membership.v1",
+            // 军团成员追踪
+            "esi-corporations.track_members.v1",
+            // 军团建筑/星堡
+            "esi-corporations.read_structures.v1",
+            // 军团合同
+            "esi-contracts.read_corporation_contracts.v1"
         )
     }
 
@@ -52,6 +67,51 @@ class EsiAuthManager @Inject constructor(
         val intent = Intent(Intent.ACTION_VIEW, getAuthorizationUrl())
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+    }
+
+    /**
+     * 确保 token 有效，过期则自动刷新
+     * @return true if token is valid after this call
+     */
+    suspend fun ensureValidToken(): Boolean {
+        if (!tokenManager.isLoggedIn()) return false
+        if (!tokenManager.isTokenExpired()) return true
+        return refreshToken()
+    }
+
+    private suspend fun refreshToken(): Boolean {
+        val refreshToken = tokenManager.getRefreshToken() ?: return false
+        return withContext(Dispatchers.IO) {
+            try {
+                val body = FormBody.Builder()
+                    .add("grant_type", "refresh_token")
+                    .add("refresh_token", refreshToken)
+                    .add("client_id", BuildConfig.ESI_CLIENT_ID)
+                    .build()
+                val request = Request.Builder()
+                    .url(ESI_TOKEN_URL)
+                    .post(body)
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .build()
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val json = JSONObject(response.body!!.string())
+                    tokenManager.saveTokens(
+                        json.getString("access_token"),
+                        json.getString("refresh_token"),
+                        json.getInt("expires_in")
+                    )
+                    true
+                } else {
+                    Log.e(TAG, "Token refresh failed: ${response.code}")
+                    tokenManager.logout()
+                    false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Token refresh exception", e)
+                false
+            }
+        }
     }
 
     suspend fun handleCallback(code: String, state: String): Boolean {

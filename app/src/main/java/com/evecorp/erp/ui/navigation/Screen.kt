@@ -15,5 +15,6 @@ enum class Screen(
     INDUSTRY("industry", "工业", Icons.Filled.Build),
     MARKET("market", "市场", Icons.Filled.ShoppingCart),
     HANGAR("hangar", "机库", Icons.Filled.Inventory),
-    BILLS("bills", "账单", Icons.Filled.Receipt)
+    BILLS("bills", "账单", Icons.Filled.Receipt),
+    SETTINGS("settings", "设置", Icons.Filled.Settings)
 }
