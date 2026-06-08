@@ -18,7 +18,8 @@ data class HangarUiState(
     val selectedDivision: CorporationDivisionEntity? = null,
     val items: UiState<List<HangarItemWith>> = UiState.Loading,
     val searchQuery: String = "",
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val syncError: String? = null
 )
 
 data class HangarItemWith(
@@ -36,8 +37,8 @@ class HangarViewModel @Inject constructor(
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedDivision = MutableStateFlow<CorporationDivisionEntity?>(null)
     private val _searchQuery = MutableStateFlow("")
+    private val _syncError = MutableStateFlow<String?>(null)
 
-    // Items flow derived from selected division
     private val _itemsWithNames: Flow<List<HangarItemWith>> = _selectedDivision
         .filterNotNull()
         .flatMapLatest { division ->
@@ -55,8 +56,9 @@ class HangarViewModel @Inject constructor(
         hangarRepository.getAllDivisions(),
         _selectedDivision,
         _itemsWithNames,
-        _searchQuery
-    ) { divisions, selected, items, query ->
+        _searchQuery,
+        _syncError
+    ) { divisions, selected, items, query, error ->
         val selectedDiv = selected ?: divisions.firstOrNull { it.isMain } ?: divisions.firstOrNull()
         val filtered = if (query.isBlank()) items
         else items.filter { it.typeName.contains(query, ignoreCase = true) }
@@ -65,12 +67,12 @@ class HangarViewModel @Inject constructor(
             divisions = UiState.Success(divisions),
             selectedDivision = selectedDiv,
             items = UiState.Success(filtered),
-            searchQuery = query
+            searchQuery = query,
+            syncError = error
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HangarUiState())
 
     init {
-        // Auto-select first division when divisions load
         viewModelScope.launch {
             hangarRepository.getAllDivisions().first().let { divisions ->
                 if (_selectedDivision.value == null) {
@@ -90,8 +92,13 @@ class HangarViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            hangarRepository.syncDivisions(corpId)
-            hangarRepository.syncAssets(corpId)
+            _syncError.value = null
+            hangarRepository.syncDivisions(corpId).onFailure { e ->
+                _syncError.value = "部门同步失败: ${e.message}"
+            }
+            hangarRepository.syncAssets(corpId).onFailure { e ->
+                _syncError.value = "资产同步失败: ${e.message}"
+            }
         }
     }
 

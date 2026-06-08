@@ -14,7 +14,8 @@ import javax.inject.Inject
 data class IndustryUiState(
     val jobs: UiState<List<IndustryJobEntity>> = UiState.Loading,
     val selectedTab: IndustryTab = IndustryTab.ALL,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val syncError: String? = null
 )
 
 enum class IndustryTab(val label: String, val activity: String?) {
@@ -32,17 +33,20 @@ class IndustryViewModel @Inject constructor(
 
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(IndustryTab.ALL)
+    private val _syncError = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<IndustryUiState> = combine(
         _selectedTab,
-        industryRepository.getActiveJobs(corpId)
-    ) { tab, allJobs ->
+        industryRepository.getActiveJobs(corpId),
+        _syncError
+    ) { tab, allJobs, error ->
         val filtered = if (tab.activity != null) {
             allJobs.filter { it.activityType == tab.activity }
         } else allJobs
         IndustryUiState(
             jobs = UiState.Success(filtered),
-            selectedTab = tab
+            selectedTab = tab,
+            syncError = error
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), IndustryUiState())
 
@@ -52,7 +56,11 @@ class IndustryViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            industryRepository.syncJobs(corpId)
+            _syncError.value = null
+            val result = industryRepository.syncJobs(corpId)
+            result.onFailure { e ->
+                _syncError.value = e.message ?: "同步失败"
+            }
         }
     }
 }

@@ -16,7 +16,8 @@ data class MarketUiState(
     val buyOrders: UiState<List<MarketOrderEntity>> = UiState.Loading,
     val selectedTab: MarketTab = MarketTab.SELL,
     val searchQuery: String = "",
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val syncError: String? = null
 )
 
 enum class MarketTab(val label: String) {
@@ -33,20 +34,23 @@ class MarketViewModel @Inject constructor(
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(MarketTab.SELL)
     private val _searchQuery = MutableStateFlow("")
+    private val _syncError = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<MarketUiState> = combine(
         _selectedTab,
         _searchQuery,
         marketRepository.getActiveSellOrders(corpId),
-        marketRepository.getActiveBuyOrders(corpId)
-    ) { tab, query, sellOrders, buyOrders ->
+        marketRepository.getActiveBuyOrders(corpId),
+        _syncError
+    ) { tab, query, sellOrders, buyOrders, error ->
         val filteredSell = filterOrders(sellOrders, query)
         val filteredBuy = filterOrders(buyOrders, query)
         MarketUiState(
             sellOrders = UiState.Success(filteredSell),
             buyOrders = UiState.Success(filteredBuy),
             selectedTab = tab,
-            searchQuery = query
+            searchQuery = query,
+            syncError = error
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MarketUiState())
 
@@ -60,7 +64,10 @@ class MarketViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            marketRepository.syncOrders(corpId)
+            _syncError.value = null
+            marketRepository.syncOrders(corpId).onFailure { e ->
+                _syncError.value = e.message ?: "同步失败"
+            }
         }
     }
 

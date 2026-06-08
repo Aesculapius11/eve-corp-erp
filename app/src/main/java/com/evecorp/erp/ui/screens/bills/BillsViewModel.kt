@@ -15,7 +15,8 @@ data class BillsUiState(
     val unpaidBills: UiState<List<CorporationBillEntity>> = UiState.Loading,
     val paidBills: UiState<List<CorporationBillEntity>> = UiState.Loading,
     val selectedTab: BillsTab = BillsTab.UNPAID,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val syncError: String? = null
 )
 
 enum class BillsTab(val label: String) {
@@ -31,17 +32,20 @@ class BillsViewModel @Inject constructor(
 
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(BillsTab.UNPAID)
+    private val _syncError = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<BillsUiState> = combine(
         corporationBillRepository.getUnpaid(corpId),
         corporationBillRepository.getAll(corpId),
-        _selectedTab
-    ) { unpaid, all, tab ->
+        _selectedTab,
+        _syncError
+    ) { unpaid, all, tab, error ->
         val paid = all.filter { it.paid }
         BillsUiState(
             unpaidBills = UiState.Success(unpaid),
             paidBills = UiState.Success(paid),
-            selectedTab = tab
+            selectedTab = tab,
+            syncError = error
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BillsUiState())
 
@@ -51,7 +55,10 @@ class BillsViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            corporationBillRepository.syncBills(corpId)
+            _syncError.value = null
+            corporationBillRepository.syncBills(corpId).onFailure { e ->
+                _syncError.value = e.message ?: "同步失败"
+            }
         }
     }
 }

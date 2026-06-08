@@ -41,6 +41,22 @@ fun IndustryScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // 同步错误提示
+            uiState.syncError?.let { error ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    tonalElevation = 2.dp
+                ) {
+                    Text(
+                        text = "同步失败: $error",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
             // Tab row
             TabRow(selectedTabIndex = uiState.selectedTab.ordinal) {
                 IndustryTab.entries.forEach { tab ->
