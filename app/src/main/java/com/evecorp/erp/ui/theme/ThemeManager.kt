@@ -1,43 +1,35 @@
 package com.evecorp.erp.ui.theme
 
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStore
+import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private val Context.themeDataStore by preferencesDataStore(name = "theme_prefs")
 
 @Singleton
 class ThemeManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val darkModeKey = booleanPreferencesKey("dark_mode")
-    private val followSystemKey = booleanPreferencesKey("follow_system")
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
 
-    val isDarkMode: Flow<Boolean> = context.themeDataStore.data.map { prefs ->
-        val followSystem = prefs[followSystemKey] ?: true
-        if (followSystem) null else prefs[darkModeKey] ?: false
+    private val _darkMode = MutableStateFlow(prefs.getBoolean("dark_mode", false))
+    private val _followSystem = MutableStateFlow(prefs.getBoolean("follow_system", true))
+
+    val isDarkMode: Flow<Boolean?> = _darkMode.asStateFlow()
+    val followSystem: Flow<Boolean> = _followSystem.asStateFlow()
+
+    fun setDarkMode(enabled: Boolean) {
+        prefs.edit().putBoolean("dark_mode", enabled).putBoolean("follow_system", false).apply()
+        _darkMode.value = enabled
+        _followSystem.value = false
     }
 
-    val followSystem: Flow<Boolean> = context.themeDataStore.data.map { prefs ->
-        prefs[followSystemKey] ?: true
-    }
-
-    suspend fun setDarkMode(enabled: Boolean) {
-        context.themeDataStore.edit { prefs ->
-            prefs[darkModeKey] = enabled
-            prefs[followSystemKey] = false
-        }
-    }
-
-    suspend fun setFollowSystem(enabled: Boolean) {
-        context.themeDataStore.edit { prefs ->
-            prefs[followSystemKey] = enabled
-        }
+    fun setFollowSystem(enabled: Boolean) {
+        prefs.edit().putBoolean("follow_system", enabled).apply()
+        _followSystem.value = enabled
     }
 }

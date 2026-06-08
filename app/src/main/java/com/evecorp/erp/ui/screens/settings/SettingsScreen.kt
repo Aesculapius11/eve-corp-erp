@@ -99,8 +99,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        val scope = rememberCoroutineScope()
-
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -118,9 +116,7 @@ fun SettingsScreen(
                     }
                     Switch(
                         checked = followSystem,
-                        onCheckedChange = { checked ->
-                            scope.launch { themeManager.setFollowSystem(checked) }
-                        }
+                        onCheckedChange = { themeManager.setFollowSystem(it) }
                     )
                 }
 
@@ -142,9 +138,7 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = isDarkMode == true,
-                            onCheckedChange = { checked ->
-                                scope.launch { themeManager.setDarkMode(checked) }
-                            }
+                            onCheckedChange = { themeManager.setDarkMode(it) }
                         )
                     }
                 }
