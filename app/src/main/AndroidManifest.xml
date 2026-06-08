@@ -34,7 +34,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="eveauth"
-                    android:host="callback" />
+                    android:host="app" />
             </intent-filter>
         </activity>
 
