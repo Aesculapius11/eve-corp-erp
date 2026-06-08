@@ -11,9 +11,14 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class MarketOrderWith(
+    val order: MarketOrderEntity,
+    val typeName: String
+)
+
 data class MarketUiState(
-    val sellOrders: UiState<List<MarketOrderEntity>> = UiState.Loading,
-    val buyOrders: UiState<List<MarketOrderEntity>> = UiState.Loading,
+    val sellOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
+    val buyOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
     val selectedTab: MarketTab = MarketTab.SELL,
     val searchQuery: String = "",
     val isRefreshing: Boolean = false,
@@ -42,8 +47,14 @@ class MarketViewModel @Inject constructor(
         marketRepository.getAllActiveOrders(),
         _syncError
     ) { tab, query, allOrders, error ->
-        val sellOrders = allOrders.filter { !it.isBuyOrder }
-        val buyOrders = allOrders.filter { it.isBuyOrder }
+        val withNames = allOrders.map { order ->
+            MarketOrderWith(
+                order = order,
+                typeName = marketRepository.getTypeName(order.typeId)
+            )
+        }
+        val sellOrders = withNames.filter { !it.order.isBuyOrder }
+        val buyOrders = withNames.filter { it.order.isBuyOrder }
         val filteredSell = filterOrders(sellOrders, query)
         val filteredBuy = filterOrders(buyOrders, query)
         MarketUiState(
@@ -66,22 +77,24 @@ class MarketViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _syncError.value = null
-            // 同步公司订单
             marketRepository.syncOrders(corpId).onFailure { e ->
                 _syncError.value = "公司订单: ${e.message}"
             }
-            // 同步个人订单
             marketRepository.syncCharacterOrders(tokenManager.characterId).onFailure { e ->
                 _syncError.value = (_syncError.value?.plus("; ") ?: "") + "个人订单: ${e.message}"
             }
+            // 解析物品名
+            val allOrders = marketRepository.getAllActiveOrders().first()
+            marketRepository.syncTypeNames(allOrders)
         }
     }
 
-    private fun filterOrders(orders: List<MarketOrderEntity>, query: String): List<MarketOrderEntity> {
+    private fun filterOrders(orders: List<MarketOrderWith>, query: String): List<MarketOrderWith> {
         if (query.isBlank()) return orders
         return orders.filter {
-            it.typeId.toString().contains(query, ignoreCase = true) ||
-                it.locationId.toString().contains(query, ignoreCase = true)
+            it.typeName.contains(query, ignoreCase = true) ||
+                it.order.typeId.toString().contains(query, ignoreCase = true) ||
+                it.order.locationId.toString().contains(query, ignoreCase = true)
         }
     }
 }

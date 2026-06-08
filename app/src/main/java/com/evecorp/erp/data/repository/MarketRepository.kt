@@ -13,6 +13,7 @@ import javax.inject.Singleton
 @Singleton
 class MarketRepository @Inject constructor(
     private val marketOrderDao: MarketOrderDao,
+    private val typeNameCacheDao: com.evecorp.erp.data.local.dao.TypeNameCacheDao,
     private val esiApi: EveEsiApi
 ) {
     fun getActiveSellOrders(corpId: Long): Flow<List<MarketOrderEntity>> =
@@ -23,6 +24,29 @@ class MarketRepository @Inject constructor(
 
     fun getAllActiveOrders(): Flow<List<MarketOrderEntity>> =
         marketOrderDao.getAllActiveOrders()
+
+    suspend fun getTypeName(typeId: Long): String =
+        typeNameCacheDao.getName(typeId) ?: "Unknown ($typeId)"
+
+    suspend fun syncTypeNames(orders: List<MarketOrderEntity>) {
+        val typeIds = orders.map { it.typeId }.distinct()
+        val missing = typeIds.filter { typeNameCacheDao.getName(it) == null }
+        if (missing.isNotEmpty()) {
+            try {
+                val resp = esiApi.postUniverseNames(missing)
+                if (resp.isSuccessful) {
+                    resp.body()?.let { names ->
+                        typeNameCacheDao.insertAll(names.map {
+                            com.evecorp.erp.data.local.entity.TypeNameCacheEntity(
+                                typeId = it.id,
+                                typeName = it.name
+                            )
+                        })
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
 
     suspend fun syncOrders(corpId: Long): Result<Unit> {
         return try {

@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
-import com.evecorp.erp.data.local.entity.MarketOrderEntity
 import com.evecorp.erp.ui.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,8 +98,8 @@ fun MarketScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             item { Spacer(Modifier.height(4.dp)) }
-                            items(orders.data, key = { it.orderId }) { order ->
-                                MarketOrderCard(order)
+                            items(orders.data, key = { it.order.orderId }) { orderWith ->
+                                MarketOrderCard(orderWith)
                             }
                             item { Spacer(Modifier.height(16.dp)) }
                         }
@@ -115,7 +114,8 @@ fun MarketScreen(
 }
 
 @Composable
-private fun MarketOrderCard(order: MarketOrderEntity) {
+private fun MarketOrderCard(orderWith: MarketOrderWith) {
+    val order = orderWith.order
     val volumePercent = if (order.volumeTotal > 0) {
         order.volumeRemain.toFloat() / order.volumeTotal.toFloat()
     } else 0f
@@ -129,7 +129,7 @@ private fun MarketOrderCard(order: MarketOrderEntity) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "物品 ID: ${order.typeId}",
+                    orderWith.typeName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )

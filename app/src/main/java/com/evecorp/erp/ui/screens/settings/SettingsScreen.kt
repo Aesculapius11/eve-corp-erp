@@ -52,9 +52,7 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
         Text(
             text = "设置",
@@ -62,26 +60,101 @@ fun SettingsScreen(
             fontWeight = FontWeight.Bold
         )
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ── 角色信息卡片 ──
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = uiState.characterName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "ID: ${uiState.characterId}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "军团 ID: ${uiState.corporationId}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ── 外观设置 ──
+        Text(
+            text = "外观",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = "角色: ${uiState.characterName}",
-            style = MaterialTheme.typography.bodyLarge
-        )
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // 跟随系统
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("跟随系统", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "自动匹配系统深色/浅色模式",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = uiState.followSystem,
+                        onCheckedChange = { viewModel.setFollowSystem(it) }
+                    )
+                }
 
-        Text(
-            text = "军团 ID: ${uiState.corporationId}",
-            style = MaterialTheme.typography.bodyMedium
-        )
+                if (!uiState.followSystem) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-        Spacer(modifier = Modifier.height(32.dp))
+                    // 手动深色模式
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("深色模式", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "手动切换深色/浅色主题",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = uiState.isDarkMode == true,
+                            onCheckedChange = { viewModel.setDarkMode(it) }
+                        )
+                    }
+                }
+            }
+        }
 
+        Spacer(modifier = Modifier.weight(1f))
+
+        // ── 退出按钮 ──
         OutlinedButton(
-            onClick = { showLogoutDialog = true }
+            onClick = { showLogoutDialog = true },
+            modifier = Modifier.fillMaxWidth()
         ) {
             Icon(Icons.Filled.ExitToApp, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("退出登录")
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
