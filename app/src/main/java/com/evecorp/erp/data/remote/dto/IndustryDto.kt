@@ -28,7 +28,7 @@ data class IndustryJobDto(
     @Json(name = "status") val status: String,
     @Json(name = "start_date") val startDate: String,
     @Json(name = "end_date") val endDate: String,
-    @Json(name = "install_date") val installDate: String,
+    @Json(name = "install_date") val installDate: String? = null,
     @Json(name = "facility_id") val facilityId: Long,
     @Json(name = "station_id") val stationId: Long? = null,
     @Json(name = "location_id") val locationId: Long,
