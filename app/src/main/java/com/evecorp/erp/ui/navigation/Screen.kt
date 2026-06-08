@@ -7,8 +7,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 enum class Screen(
     val route: String,
     val label: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val showInNavBar: Boolean = true
 ) {
+    LOGIN("login", "登录", Icons.Filled.Person, showInNavBar = false),
     DASHBOARD("dashboard", "首页", Icons.Filled.Home),
     INDUSTRY("industry", "工业", Icons.Filled.Build),
     MARKET("market", "市场", Icons.Filled.ShoppingCart),

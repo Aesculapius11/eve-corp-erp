@@ -10,18 +10,25 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.evecorp.erp.auth.EsiAuthManager
+import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.ui.navigation.Screen
 import com.evecorp.erp.ui.screens.bills.BillsScreen
 import com.evecorp.erp.ui.screens.dashboard.DashboardScreen
 import com.evecorp.erp.ui.screens.hangar.HangarScreen
 import com.evecorp.erp.ui.screens.industry.IndustryScreen
+import com.evecorp.erp.ui.screens.login.LoginScreen
 import com.evecorp.erp.ui.screens.market.MarketScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EveCorpApp() {
+fun EveCorpApp(
+    esiAuthManager: EsiAuthManager,
+    tokenManager: TokenManager
+) {
     val navController = rememberNavController()
-    val screens = Screen.entries
+    val isLoggedIn = tokenManager.isLoggedIn()
+    val screens = Screen.entries.filter { it.showInNavBar }
 
     Scaffold(
         bottomBar = {
@@ -50,9 +57,14 @@ fun EveCorpApp() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.DASHBOARD.route,
+            startDestination = if (isLoggedIn) Screen.DASHBOARD.route else Screen.LOGIN.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Screen.LOGIN.route) {
+                LoginScreen(
+                    onLoginClick = { esiAuthManager.openLogin() }
+                )
+            }
             composable(Screen.DASHBOARD.route) { DashboardScreen() }
             composable(Screen.INDUSTRY.route) { IndustryScreen() }
             composable(Screen.MARKET.route) { MarketScreen() }
