@@ -30,3 +30,9 @@ Thumbs.db
 
 # Local config
 local.properties
+
+# Build logs
+build_log*.txt
+
+# Gradle wrapper bat (auto-generated)
+gradlew.bat

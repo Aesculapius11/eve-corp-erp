@@ -19,6 +19,9 @@ interface WalletJournalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(entries: List<WalletJournalEntity>)
 
+    @Query("SELECT * FROM wallet_journal WHERE corporationId = :corpId AND date >= :sinceMs ORDER BY date ASC")
+    suspend fun getJournalSince(corpId: Long, sinceMs: Long): List<WalletJournalEntity>
+
     @Query("DELETE FROM wallet_journal WHERE corporationId = :corpId")
     suspend fun deleteAll(corpId: Long)
 }

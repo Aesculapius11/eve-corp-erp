@@ -1,13 +1,23 @@
 package com.evecorp.erp.ui.screens.dashboard
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -17,6 +27,7 @@ import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
 import com.evecorp.erp.ui.formatIsk
 import com.evecorp.erp.ui.formatTimeAgo
+import com.evecorp.erp.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,82 +35,325 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.tab_dashboard)) },
+                title = {
+                    Text(
+                        stringResource(R.string.tab_dashboard),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
+                    FilledIconButton(
+                        onClick = { viewModel.refresh() },
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
                         Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.btn_refresh))
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
             )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
+                .padding(padding),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { Spacer(Modifier.height(8.dp)) }
+            // ── 钱包余额卡片（渐变背景） ──
+            item { BalanceHeroCard(uiState.balance) }
 
-            // 钱包余额卡片
-            item { BalanceCard(uiState.balance) }
-
-            // 30 天余额趋势图
+            // ── 30 天资产变化 ──
             item {
-                Text(
-                    "30 天余额趋势",
-                    style = MaterialTheme.typography.titleLarge
+                SectionHeader(
+                    icon = Icons.Outlined.TrendingUp,
+                    title = "30 天资产变化"
                 )
             }
-            item {
-                BalanceHistoryCard(uiState.balanceHistory)
-            }
+            item { BalanceHistoryCard(uiState.balanceHistory) }
 
-            // 成本指数
+            // ── 成本指数 ──
             item {
-                Text(
-                    stringResource(R.string.cost_index),
-                    style = MaterialTheme.typography.titleLarge
+                SectionHeader(
+                    icon = Icons.Outlined.Analytics,
+                    title = stringResource(R.string.cost_index)
                 )
             }
             item { CostIndexCard(uiState.costIndex) }
 
-            item { Spacer(Modifier.height(16.dp)) }
+            item { Spacer(Modifier.height(8.dp)) }
         }
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  Section Header — Icon + Title
+// ═══════════════════════════════════════════════════════════════
+
 @Composable
-private fun BalanceCard(state: UiState<com.evecorp.erp.data.local.entity.WalletBalanceEntity>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(stringResource(R.string.wallet_balance), style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
-            when (state) {
-                is UiState.Loading -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                is UiState.Success -> {
+private fun SectionHeader(icon: ImageVector, title: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Balance Hero Card — Gradient background, prominent ISK display
+// ═══════════════════════════════════════════════════════════════
+
+@Composable
+private fun BalanceHeroCard(state: UiState<com.evecorp.erp.data.local.entity.WalletBalanceEntity>) {
+    val gradientColors = listOf(Sky400, Sky500, Sky600)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Brush.linearGradient(gradientColors))
+                .padding(24.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = formatIsk(state.data.balance),
-                        style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = stringResource(R.string.wallet_balance),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.White.copy(alpha = 0.8f)
                     )
-                    Text(
-                        text = "更新于 ${formatTimeAgo(state.data.lastUpdated)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                when (state) {
+                    is UiState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = Color.White,
+                            strokeWidth = 2.5.dp
+                        )
+                    }
+                    is UiState.Success -> {
+                        Text(
+                            text = formatIsk(state.data.balance),
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "更新于 ${formatTimeAgo(state.data.lastUpdated)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                    is UiState.Error -> {
+                        Text(
+                            text = if (state.isOffline) stringResource(R.string.error_offline)
+                            else stringResource(R.string.error_generic),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Balance History Card — Chart wrapper
+// ═══════════════════════════════════════════════════════════════
+
+@Composable
+private fun BalanceHistoryCard(state: UiState<List<com.evecorp.erp.data.local.entity.BalanceSnapshotEntity>>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        when (state) {
+            is UiState.Loading -> Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(strokeWidth = 2.5.dp)
+            }
+            is UiState.Success -> {
+                if (state.data.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.BarChart,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "暂无历史数据，同步后将开始记录",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                } else {
+                    BalanceChart(
+                        snapshots = state.data,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
-                is UiState.Error -> Text(
-                    if (state.isOffline) stringResource(R.string.error_offline)
-                    else stringResource(R.string.error_generic),
+            }
+            is UiState.Error -> Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.error_generic),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Cost Index Card — Grid layout with accent colors
+// ═══════════════════════════════════════════════════════════════
+
+@Composable
+private fun CostIndexCard(state: UiState<com.evecorp.erp.data.local.entity.SystemCostIndexEntity>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        when (state) {
+            is UiState.Loading -> Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(strokeWidth = 2.5.dp)
+            }
+            is UiState.Success -> {
+                val ci = state.data
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CostItemCard(
+                            label = stringResource(R.string.manufacturing),
+                            value = ci.manufacturing,
+                            color = Sky100,
+                            textColor = Sky700,
+                            modifier = Modifier.weight(1f)
+                        )
+                        CostItemCard(
+                            label = stringResource(R.string.invention),
+                            value = ci.invention,
+                            color = Sakura100,
+                            textColor = Sakura600,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CostItemCard(
+                            label = stringResource(R.string.copying),
+                            value = ci.copying,
+                            color = Lavender100,
+                            textColor = Lavender400,
+                            modifier = Modifier.weight(1f)
+                        )
+                        CostItemCard(
+                            label = "材料研究",
+                            value = ci.researchingMaterialEfficiency,
+                            color = Mint100,
+                            textColor = Mint400,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            is UiState.Error -> Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(R.string.error_generic),
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -108,73 +362,34 @@ private fun BalanceCard(state: UiState<com.evecorp.erp.data.local.entity.WalletB
 }
 
 @Composable
-private fun BalanceHistoryCard(state: UiState<List<com.evecorp.erp.data.local.entity.BalanceSnapshotEntity>>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        when (state) {
-            is UiState.Loading -> Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-            is UiState.Success -> {
-                if (state.data.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "暂无历史数据，同步后将开始记录",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                } else {
-                    BalanceChart(
-                        snapshots = state.data,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-            is UiState.Error -> Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(stringResource(R.string.error_generic), color = MaterialTheme.colorScheme.error)
-            }
+private fun CostItemCard(
+    label: String,
+    value: Double,
+    color: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = color
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = textColor.copy(alpha = 0.8f)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "${String.format("%.2f", value * 100)}%",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
         }
-    }
-}
-
-@Composable
-private fun CostIndexCard(state: UiState<com.evecorp.erp.data.local.entity.SystemCostIndexEntity>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            when (state) {
-                is UiState.Loading -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                is UiState.Success -> {
-                    val ci = state.data
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        CostItem(stringResource(R.string.manufacturing), ci.manufacturing)
-                        CostItem(stringResource(R.string.invention), ci.invention)
-                        CostItem(stringResource(R.string.copying), ci.copying)
-                        CostItem("材料研究", ci.researchingMaterialEfficiency)
-                    }
-                }
-                is UiState.Error -> Text(stringResource(R.string.error_generic), color = MaterialTheme.colorScheme.error)
-            }
-        }
-    }
-}
-
-@Composable
-private fun CostItem(label: String, value: Double) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            "${String.format("%.2f", value * 100)}%",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
     }
 }

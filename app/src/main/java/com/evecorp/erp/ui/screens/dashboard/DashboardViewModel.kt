@@ -60,6 +60,8 @@ class DashboardViewModel @Inject constructor(
             _isRefreshing.value = true
             walletRepository.syncBalance(corpId)
             walletRepository.syncJournal(corpId)
+            // 从流水反推过去 30 天每日余额
+            walletRepository.reconstructHistoryFromJournal(corpId)
             industryRepository.syncCostIndices(listOf(Constants.HAAJINEN_SYSTEM_ID))
             _isRefreshing.value = false
         }

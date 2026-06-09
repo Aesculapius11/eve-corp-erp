@@ -14,11 +14,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evecorp.erp.data.local.entity.BalanceSnapshotEntity
+import com.evecorp.erp.ui.theme.Sky400
+import com.evecorp.erp.ui.theme.Sky500
+import com.evecorp.erp.ui.theme.Sky600
+import com.evecorp.erp.ui.theme.Sakura300
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
- * 30 天钱包余额折线图，带动画渐现效果。
+ * 30 天资产变化折线图，带动画渐现效果。
+ * 使用 Sky Blue 渐变填充，Sakura Pink 数据点高亮。
  */
 @Composable
 fun BalanceChart(
@@ -26,14 +31,18 @@ fun BalanceChart(
     modifier: Modifier = Modifier
 ) {
     if (snapshots.isEmpty()) {
-        Box(modifier = modifier.height(200.dp))
+        Box(modifier = modifier.height(220.dp))
         return
     }
 
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
-    val outlineVariant = MaterialTheme.colorScheme.outlineVariant
+    val lineColor = Sky500
+    val gradientStartColor = Sky400.copy(alpha = 0.25f)
+    val gradientEndColor = Sky600.copy(alpha = 0.02f)
+    val dotColor = Sky600
+    val dotCenterColor = MaterialTheme.colorScheme.surface
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val accentDot = Sakura300
 
     // 动画：折线渐现
     val animProgress = remember { Animatable(0f) }
@@ -41,7 +50,7 @@ fun BalanceChart(
         animProgress.snapTo(0f)
         animProgress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 1000, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f))
         )
     }
 
@@ -59,11 +68,11 @@ fun BalanceChart(
 
     val textMeasurer = rememberTextMeasurer()
 
-    Canvas(modifier = modifier.height(200.dp).fillMaxWidth()) {
-        val paddingLeft = 80.dp.toPx()
+    Canvas(modifier = modifier.height(220.dp).fillMaxWidth()) {
+        val paddingLeft = 72.dp.toPx()
         val paddingRight = 16.dp.toPx()
-        val paddingTop = 16.dp.toPx()
-        val paddingBottom = 32.dp.toPx()
+        val paddingTop = 20.dp.toPx()
+        val paddingBottom = 36.dp.toPx()
 
         val chartWidth = size.width - paddingLeft - paddingRight
         val chartHeight = size.height - paddingTop - paddingBottom
@@ -79,7 +88,6 @@ fun BalanceChart(
         val maxVal = values.max() * 1.05
         val range = if (maxVal > minVal) maxVal - minVal else 1.0
 
-        // 坐标映射
         fun xFor(index: Int): Float {
             val fraction = index.toFloat() / (dateRange.size - 1).coerceAtLeast(1)
             return paddingLeft + fraction * chartWidth
@@ -94,17 +102,18 @@ fun BalanceChart(
         for (i in 0..3) {
             val y = paddingTop + chartHeight * i / 3f
             drawLine(
-                color = outlineVariant.copy(alpha = 0.5f),
+                color = gridColor,
                 start = Offset(paddingLeft, y),
                 end = Offset(size.width - paddingRight, y),
-                strokeWidth = 1.dp.toPx()
+                strokeWidth = 0.8.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))
             )
             // Y 轴标签
             val labelValue = maxVal - (range * i / 3.0)
             val label = formatBalanceShort(labelValue)
             val result = textMeasurer.measure(
                 AnnotatedString(label),
-                style = TextStyle(fontSize = 10.sp, color = onSurfaceVariant)
+                style = TextStyle(fontSize = 10.sp, color = labelColor)
             )
             drawText(result, topLeft = Offset(4.dp.toPx(), y - result.size.height / 2f))
         }
@@ -115,9 +124,9 @@ fun BalanceChart(
             val label = dateRange[i].format(DateTimeFormatter.ofPattern("M/d"))
             val result = textMeasurer.measure(
                 AnnotatedString(label),
-                style = TextStyle(fontSize = 10.sp, color = onSurfaceVariant, textAlign = TextAlign.Center)
+                style = TextStyle(fontSize = 10.sp, color = labelColor, textAlign = TextAlign.Center)
             )
-            drawText(result, topLeft = Offset(x - result.size.width / 2f, size.height - paddingBottom + 8.dp.toPx()))
+            drawText(result, topLeft = Offset(x - result.size.width / 2f, size.height - paddingBottom + 10.dp.toPx()))
         }
 
         // 折线路径
@@ -142,7 +151,7 @@ fun BalanceChart(
         drawPath(
             path = fillPath,
             brush = Brush.verticalGradient(
-                colors = listOf(primaryColor.copy(alpha = 0.3f), Color.Transparent),
+                colors = listOf(gradientStartColor, gradientEndColor),
                 startY = paddingTop,
                 endY = paddingTop + chartHeight
             )
@@ -151,16 +160,31 @@ fun BalanceChart(
         // 折线描边
         drawPath(
             path = path,
-            color = primaryColor,
-            style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            color = lineColor,
+            style = Stroke(
+                width = 2.5.dp.toPx(),
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
         )
 
         // 数据点
-        visiblePoints.forEach { (indexF, value) ->
+        visiblePoints.forEachIndexed { idx, (indexF, value) ->
             val x = xFor(indexF.toInt())
             val y = yFor(value)
-            drawCircle(color = primaryColor, radius = 3.5.dp.toPx(), center = Offset(x, y))
-            drawCircle(color = surfaceVariant, radius = 2.dp.toPx(), center = Offset(x, y))
+            val isLast = idx == visiblePoints.lastIndex
+            // 外圈
+            drawCircle(
+                color = if (isLast) accentDot else dotColor,
+                radius = if (isLast) 5.dp.toPx() else 3.5.dp.toPx(),
+                center = Offset(x, y)
+            )
+            // 内圈
+            drawCircle(
+                color = dotCenterColor,
+                radius = if (isLast) 2.5.dp.toPx() else 2.dp.toPx(),
+                center = Offset(x, y)
+            )
         }
     }
 }

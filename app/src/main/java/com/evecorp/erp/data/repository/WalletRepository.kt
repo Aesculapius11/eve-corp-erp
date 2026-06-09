@@ -78,6 +78,71 @@ class WalletRepository @Inject constructor(
         }
     }
 
+    /**
+     * 从钱包流水反推过去 30 天的每日余额，重建历史快照。
+     * 原理：balance[day] = balance[day+1] - sum(journal_amounts[day+1])
+     */
+    suspend fun reconstructHistoryFromJournal(corpId: Long) {
+        val currentBalance = walletBalanceDao.getBalanceSync(corpId)?.balance ?: return
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val cutoffDate = today.minusDays(30)
+        val cutoffMs = cutoffDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+
+        // 获取过去 30 天的流水
+        val journalEntries = walletJournalDao.getJournalSince(corpId, cutoffMs)
+
+        // 按日期分组，计算每日净变动
+        val amountsByDate: Map<String, Double> = journalEntries
+            .groupBy { entry ->
+                Instant.ofEpochMilli(entry.date)
+                    .atZone(ZoneOffset.UTC)
+                    .toLocalDate()
+                    .format(formatter)
+            }
+            .mapValues { (_, entries) -> entries.sumOf { it.amount } }
+
+        // 从今天往回推算每日余额
+        val snapshots = mutableListOf<BalanceSnapshotEntity>()
+        var runningBalance = currentBalance
+        val now = System.currentTimeMillis()
+
+        for (daysAgo in 0..29) {
+            val date = today.minusDays(daysAgo.toLong())
+            val dateStr = date.format(formatter)
+
+            if (daysAgo == 0) {
+                // 今天：直接用当前余额
+                snapshots.add(
+                    BalanceSnapshotEntity(
+                        corporationId = corpId,
+                        balance = runningBalance,
+                        date = dateStr,
+                        timestamp = now
+                    )
+                )
+            } else {
+                // 往回推：减去「下一天」的流水净额
+                val nextDate = today.minusDays((daysAgo - 1).toLong())
+                val nextDateStr = nextDate.format(formatter)
+                runningBalance -= (amountsByDate[nextDateStr] ?: 0.0)
+
+                snapshots.add(
+                    BalanceSnapshotEntity(
+                        corporationId = corpId,
+                        balance = runningBalance,
+                        date = dateStr,
+                        timestamp = now
+                    )
+                )
+            }
+        }
+
+        // 写入快照表（同天 REPLACE 覆盖）
+        snapshots.forEach { balanceSnapshotDao.upsert(it) }
+        Log.d(TAG, "Reconstructed ${snapshots.size} daily balance snapshots from journal")
+    }
+
     suspend fun syncJournal(corpId: Long): Result<Unit> {
         return try {
             val maxId = walletJournalDao.getMaxId(corpId)

@@ -10,47 +10,72 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// 浅蓝主色 + 浅粉副色配色方案
+// ═══════════════════════════════════════════════════════════════
+//  Soft Structuralism — Sky Blue + Sakura Pink
+//  Airy, floating components with ambient light aesthetics
+// ═══════════════════════════════════════════════════════════════
+
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF90CAF9),
-    onPrimary = Color(0xFF0D47A1),
-    primaryContainer = Color(0xFF1565C0),
-    onPrimaryContainer = Color(0xFFBBDEFB),
-    secondary = Color(0xFFF48FB1),
-    onSecondary = Color(0xFF880E4F),
-    secondaryContainer = Color(0xFFAD1457),
-    onSecondaryContainer = Color(0xFFF8BBD0),
-    tertiary = Color(0xFFFFCC80),
-    onTertiary = Color(0xFFE65100),
-    background = Color(0xFF0F0F14),
-    onBackground = Color(0xFFE0E0E0),
-    surface = Color(0xFF1A1A22),
-    onSurface = Color(0xFFE0E0E0),
-    surfaceVariant = Color(0xFF252530),
-    onSurfaceVariant = Color(0xFFBDBDBD),
-    error = Color(0xFFEF9A9A),
-    onError = Color(0xFFB71C1C)
+    primary = Sky300,
+    onPrimary = Sky900,
+    primaryContainer = Sky700,
+    onPrimaryContainer = Sky100,
+    secondary = Sakura300,
+    onSecondary = Sakura800,
+    secondaryContainer = Sakura700,
+    onSecondaryContainer = Sakura100,
+    tertiary = Lavender300,
+    onTertiary = Gray900,
+    tertiaryContainer = Lavender400.copy(alpha = 0.3f),
+    background = Gray900,
+    onBackground = Gray100,
+    surface = Gray800,
+    onSurface = Gray100,
+    surfaceVariant = Gray700,
+    onSurfaceVariant = Gray400,
+    surfaceTint = Sky300,
+    outline = Gray500,
+    outlineVariant = Gray700,
+    error = Error.copy(alpha = 0.9f),
+    onError = Color.White,
+    errorContainer = Error.copy(alpha = 0.2f),
+    onErrorContainer = ErrorLight,
+    inverseSurface = Gray100,
+    inverseOnSurface = Gray800,
+    inversePrimary = Sky600,
+    scrim = Color.Black.copy(alpha = 0.6f)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF42A5F5),
+    primary = Sky500,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFBBDEFB),
-    onPrimaryContainer = Color(0xFF0D47A1),
-    secondary = Color(0xFFF48FB1),
+    primaryContainer = Sky100,
+    onPrimaryContainer = Sky800,
+    secondary = Sakura400,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFFCE4EC),
-    onSecondaryContainer = Color(0xFF880E4F),
-    tertiary = Color(0xFFFFCC80),
+    secondaryContainer = Sakura50,
+    onSecondaryContainer = Sakura700,
+    tertiary = Lavender300,
     onTertiary = Color.White,
-    background = Color(0xFFF8FAFE),
-    onBackground = Color(0xFF1A1C1E),
+    tertiaryContainer = Lavender50,
+    onTertiaryContainer = Lavender400,
+    background = Gray50,
+    onBackground = Gray800,
     surface = Color.White,
-    onSurface = Color(0xFF1A1C1E),
-    surfaceVariant = Color(0xFFEEF2F7),
-    onSurfaceVariant = Color(0xFF44474F),
-    error = Color(0xFFD32F2F),
-    onError = Color.White
+    onSurface = Gray800,
+    surfaceVariant = Gray100,
+    onSurfaceVariant = Gray500,
+    surfaceTint = Sky500,
+    outline = Gray300,
+    outlineVariant = Gray200,
+    error = Error,
+    onError = Color.White,
+    errorContainer = ErrorLight,
+    onErrorContainer = Error,
+    inverseSurface = Gray800,
+    inverseOnSurface = Gray50,
+    inversePrimary = Sky300,
+    scrim = Color.Black.copy(alpha = 0.4f)
 )
 
 @Composable
@@ -66,7 +91,11 @@ fun EveCorpTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
+            window.navigationBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !isDark
+                isAppearanceLightNavigationBars = !isDark
+            }
         }
     }
 
