@@ -1,5 +1,7 @@
 package com.evecorp.erp.data.repository
 
+import android.util.Log
+import com.evecorp.erp.Constants
 import com.evecorp.erp.data.local.dao.IndustryJobDao
 import com.evecorp.erp.data.local.dao.SystemCostIndexDao
 import com.evecorp.erp.data.local.entity.IndustryJobEntity
@@ -13,14 +15,14 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "IndustryRepo"
+
 @Singleton
 class IndustryRepository @Inject constructor(
     private val systemCostIndexDao: SystemCostIndexDao,
     private val industryJobDao: IndustryJobDao,
     private val esiApi: EveEsiApi
 ) {
-    // --- Cost Indices ---
-
     fun getAllCostIndices(): Flow<List<SystemCostIndexEntity>> = systemCostIndexDao.getAll()
 
     fun getCostIndex(systemId: Long): Flow<SystemCostIndexEntity?> =
@@ -47,8 +49,6 @@ class IndustryRepository @Inject constructor(
         }
     }
 
-    // --- Industry Jobs ---
-
     fun getActiveJobs(corpId: Long): Flow<List<IndustryJobEntity>> =
         industryJobDao.getActiveJobs(corpId)
 
@@ -62,7 +62,7 @@ class IndustryRepository @Inject constructor(
             var totalPages = 1
 
             while (page <= totalPages) {
-                if (page > 1) delay(PAGE_DELAY_MS)
+                if (page > 1) delay(Constants.ESI_PAGE_DELAY_MS)
                 val response = esiApi.getIndustryJobs(corpId, page = page)
                 if (response.isSuccessful) {
                     response.body()?.let { allJobs.addAll(it) }
@@ -78,15 +78,13 @@ class IndustryRepository @Inject constructor(
             }
 
             industryJobDao.deleteAll(corpId)
-            industryJobDao.insertAll(allJobs.map { it.toEntity(corpId) })
+            industryJobDao.insertAll(allJobs.mapNotNull { it.toEntityOrNull(corpId) })
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 }
-
-private const val PAGE_DELAY_MS = 150L
 
 private fun IndustrySystemDto.toEntity(): SystemCostIndexEntity {
     val indices = costIndices.associate { it.activity to it.costIndex }
@@ -102,26 +100,40 @@ private fun IndustrySystemDto.toEntity(): SystemCostIndexEntity {
     )
 }
 
-private fun IndustryJobDto.toEntity(corpId: Long) = IndustryJobEntity(
-    jobId = jobId,
-    corporationId = corpId,
-    activityType = mapActivityId(activityId),
-    blueprintId = blueprintId,
-    blueprintTypeId = blueprintTypeId,
-    productTypeId = productTypeId,
-    runs = runs,
-    successfulRuns = successfulRuns,
-    licensedRuns = licensedRuns,
-    status = status,
-    startDate = Instant.parse(startDate).toEpochMilli(),
-    endDate = Instant.parse(endDate).toEpochMilli(),
-    installDate = installDate?.let { Instant.parse(it).toEpochMilli() } ?: Instant.parse(startDate).toEpochMilli(),
-    facilityId = facilityId,
-    stationId = stationId,
-    locationId = locationId,
-    cost = cost,
-    installerId = installerId
-)
+private fun IndustryJobDto.toEntityOrNull(corpId: Long): IndustryJobEntity? {
+    val startMs = startDate.toEpochMillisOrNull() ?: return null
+    val endMs = endDate.toEpochMillisOrNull() ?: return null
+    val installMs = installDate?.toEpochMillisOrNull() ?: startMs
+    return IndustryJobEntity(
+        jobId = jobId,
+        corporationId = corpId,
+        activityType = mapActivityId(activityId),
+        blueprintId = blueprintId,
+        blueprintTypeId = blueprintTypeId,
+        productTypeId = productTypeId,
+        runs = runs,
+        successfulRuns = successfulRuns,
+        licensedRuns = licensedRuns,
+        status = status,
+        startDate = startMs,
+        endDate = endMs,
+        installDate = installMs,
+        facilityId = facilityId,
+        stationId = stationId,
+        locationId = locationId,
+        cost = cost,
+        installerId = installerId
+    )
+}
+
+private fun String.toEpochMillisOrNull(): Long? {
+    return try {
+        Instant.parse(this).toEpochMilli()
+    } catch (e: Exception) {
+        Log.w(TAG, "Failed to parse date: $this", e)
+        null
+    }
+}
 
 private fun mapActivityId(id: Int): String = when (id) {
     1 -> "manufacturing"
@@ -129,5 +141,8 @@ private fun mapActivityId(id: Int): String = when (id) {
     4 -> "researching_material_efficiency"
     5 -> "copying"
     8 -> "invention"
-    else -> "unknown"
+    else -> {
+        Log.w(TAG, "Unknown activity ID: $id")
+        "unknown"
+    }
 }

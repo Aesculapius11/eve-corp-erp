@@ -31,22 +31,22 @@ class SyncWorker @AssistedInject constructor(
 
         return try {
             coroutineScope {
-                // 并行同步各模块
+                // 并行同步各模块，单个失败不影响其余
                 val jobs = listOf(
-                    async { walletRepository.syncBalance(corpId) },
-                    async { walletRepository.syncJournal(corpId) },
-                    async { industryRepository.syncCostIndices(listOf(Constants.HAAJINEN_SYSTEM_ID)) },
-                    async { industryRepository.syncJobs(corpId) },
-                    async { marketRepository.syncOrders(corpId) }
+                    async { runCatching { walletRepository.syncBalance(corpId) } },
+                    async { runCatching { walletRepository.syncJournal(corpId) } },
+                    async { runCatching { industryRepository.syncCostIndices(listOf(Constants.HAAJINEN_SYSTEM_ID)) } },
+                    async { runCatching { industryRepository.syncJobs(corpId) } },
+                    async { runCatching { marketRepository.syncOrders(corpId) } }
                 )
-                jobs.awaitAll()
+                jobs.awaitAll() // 每个都 catch 了，不会互相取消
 
                 // Hangar syncs less frequently (ESI cache = 1 hour)
                 val lastHangarSync = inputData.getLong(KEY_LAST_HANGAR_SYNC, 0)
                 val now = System.currentTimeMillis()
                 if (now - lastHangarSync > 3600_000) {
-                    hangarRepository.syncDivisions(corpId)
-                    hangarRepository.syncAssets(corpId)
+                    runCatching { hangarRepository.syncDivisions(corpId) }
+                    runCatching { hangarRepository.syncAssets(corpId) }
                 }
             }
 

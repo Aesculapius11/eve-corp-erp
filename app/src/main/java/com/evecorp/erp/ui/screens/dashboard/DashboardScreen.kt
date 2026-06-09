@@ -2,7 +2,6 @@ package com.evecorp.erp.ui.screens.dashboard
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -16,8 +15,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
-import java.text.SimpleDateFormat
-import java.util.*
+import com.evecorp.erp.ui.formatDate
+import com.evecorp.erp.ui.formatIsk
+import com.evecorp.erp.ui.formatTimeAgo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,32 +49,17 @@ fun DashboardScreen(
         ) {
             item { Spacer(Modifier.height(8.dp)) }
 
-            // Wallet Balance Card
-            item {
-                BalanceCard(uiState.balance)
-            }
+            item { BalanceCard(uiState.balance) }
 
-            // Recent Journal
             item {
-                Text(
-                    stringResource(R.string.recent_journal),
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Text(stringResource(R.string.recent_journal), style = MaterialTheme.typography.titleLarge)
             }
-            item {
-                JournalCard(uiState.journal)
-            }
+            item { JournalCard(uiState.journal) }
 
-            // Cost Index
             item {
-                Text(
-                    stringResource(R.string.cost_index),
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Text(stringResource(R.string.cost_index), style = MaterialTheme.typography.titleLarge)
             }
-            item {
-                CostIndexCard(uiState.costIndex)
-            }
+            item { CostIndexCard(uiState.costIndex) }
 
             item { Spacer(Modifier.height(16.dp)) }
         }
@@ -183,29 +168,5 @@ private fun CostItem(label: String, value: Double) {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-private fun formatIsk(amount: Double): String {
-    return when {
-        amount >= 1_000_000_000 -> "${String.format("%.2f", amount / 1_000_000_000)}B ISK"
-        amount >= 1_000_000 -> "${String.format("%.1f", amount / 1_000_000)}M ISK"
-        amount >= 1_000 -> "${String.format("%.0f", amount / 1_000)}K ISK"
-        else -> "${String.format("%.2f", amount)} ISK"
-    }
-}
-
-private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
-}
-
-private fun formatTimeAgo(timestamp: Long): String {
-    val diff = System.currentTimeMillis() - timestamp
-    return when {
-        diff < 60_000 -> "刚刚"
-        diff < 3600_000 -> "${diff / 60_000} 分钟前"
-        diff < 86400_000 -> "${diff / 3600_000} 小时前"
-        else -> "${diff / 86400_000} 天前"
     }
 }

@@ -22,7 +22,8 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "eve_corp_erp.db"
-        ).build()
+        ).fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides fun provideWalletBalanceDao(db: AppDatabase): WalletBalanceDao = db.walletBalanceDao()

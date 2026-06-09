@@ -1,10 +1,13 @@
 package com.evecorp.erp.data.repository
 
+import android.util.Log
+import com.evecorp.erp.Constants
 import com.evecorp.erp.data.local.dao.CorporationDivisionDao
 import com.evecorp.erp.data.local.dao.HangarItemDao
 import com.evecorp.erp.data.local.dao.TypeNameCacheDao
 import com.evecorp.erp.data.local.entity.CorporationDivisionEntity
 import com.evecorp.erp.data.local.entity.HangarItemEntity
+import com.evecorp.erp.data.local.entity.TypeNameCacheEntity
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.dto.HangarItemDto
 import kotlinx.coroutines.delay
@@ -12,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "HangarRepo"
 
 @Singleton
 class HangarRepository @Inject constructor(
@@ -68,7 +73,7 @@ class HangarRepository @Inject constructor(
             var totalPages = 1
 
             while (page <= totalPages) {
-                if (page > 1) delay(150L)
+                if (page > 1) delay(Constants.ESI_PAGE_DELAY_MS)
                 val response = esiApi.getAssets(corpId, page = page)
                 if (response.isSuccessful) {
                     response.body()?.let { allItems.addAll(it) }
@@ -83,18 +88,22 @@ class HangarRepository @Inject constructor(
                 }
             }
 
-            // Clear and re-insert
             hangarItemDao.deleteAll()
 
-            // 获取当前 Division 列表用于映射
             val divisions = corporationDivisionDao.getAll().first()
-            val divisionByFlag = divisions.associate { "CorpSAG${it.divisionKey}" to it.divisionId }
+            if (divisions.isEmpty()) {
+                Log.w(TAG, "No divisions found, skipping asset insert")
+                return Result.success(Unit)
+            }
 
-            val entities = allItems.map { item ->
+            val divisionByFlag = divisions.associate { "CorpSAG${it.divisionKey}" to it.divisionId }
+            val defaultDivisionId = divisions.firstOrNull { it.isMain }?.divisionId
+                ?: divisions.first().divisionId
+
+            val entities = allItems.mapNotNull { item ->
                 val divId = divisionByFlag[item.locationFlag]
                     ?: divisionByFlag["CorpSAG${mapFlagToDivision(item.locationFlag)}"]
-                    ?: divisions.firstOrNull()?.divisionId
-                    ?: 1L
+                    ?: defaultDivisionId
                 HangarItemEntity(
                     itemId = item.itemId,
                     divisionId = divId,
@@ -105,7 +114,6 @@ class HangarRepository @Inject constructor(
             }
             hangarItemDao.insertAll(entities)
 
-            // Cache type names
             val typeIds = allItems.map { it.typeId }.distinct()
             syncTypeNames(typeIds)
 
@@ -120,33 +128,26 @@ class HangarRepository @Inject constructor(
             val missing = typeIds.filter { typeNameCacheDao.getName(it) == null }
             if (missing.isEmpty()) return
 
-            // ESI accepts max 100 IDs per request
             missing.chunked(100).forEach { chunk ->
                 val response = esiApi.postUniverseNames(chunk)
                 if (response.isSuccessful) {
                     val names = response.body() ?: emptyList()
                     typeNameCacheDao.insertAll(
-                        names.map {
-                            com.evecorp.erp.data.local.entity.TypeNameCacheEntity(
-                                typeId = it.id,
-                                name = it.name
-                            )
-                        }
+                        names.map { TypeNameCacheEntity(typeId = it.id, name = it.name) }
                     )
+                } else {
+                    Log.w(TAG, "syncTypeNames failed: ${response.code()}")
                 }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            Log.w(TAG, "syncTypeNames error", e)
+        }
     }
 
     suspend fun getTypeName(typeId: Long): String =
         typeNameCacheDao.getName(typeId) ?: "Unknown ($typeId)"
 }
 
-/**
- * 根据 location_flag 推测 division 编号。
- * EVE 中 CorpSAG1=Division1, ... CorpSAG7=Division7
- * Hangar 本身 = Division 1
- */
 private fun mapFlagToDivision(flag: String): Int {
     val match = Regex("""CorpSAG(\d+)""").find(flag)
     return match?.groupValues?.get(1)?.toIntOrNull() ?: 1

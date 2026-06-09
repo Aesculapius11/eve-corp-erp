@@ -60,11 +60,16 @@ class WalletRepositoryTest {
     @Test
     fun `syncJournal inserts only new entries`() = runTest {
         coEvery { walletJournalDao.getMaxId(123L) } returns 100L
+        // Division 1 有两条记录，id=99 应被过滤
         val entries = listOf(
             WalletJournalDto(id = 99, date = "2026-01-01T00:00:00Z", refType = "tax", amount = -10.0),
             WalletJournalDto(id = 101, date = "2026-01-02T00:00:00Z", refType = "bounty", amount = 100.0)
         )
-        coEvery { esiApi.getWalletJournal(123L, 1, 1) } returns Response.success(entries)
+        // 只 mock division 1，其余 division 返回 404 跳过
+        coEvery { esiApi.getWalletJournal(123L, 1, any()) } returns Response.success(entries)
+        for (div in 2..7) {
+            coEvery { esiApi.getWalletJournal(123L, div, any()) } returns Response.error(404, okhttp3.ResponseBody.create(null, ""))
+        }
 
         val result = repository.syncJournal(123L)
 
@@ -72,6 +77,17 @@ class WalletRepositoryTest {
         coVerify {
             walletJournalDao.insertAll(match { it.size == 1 && it[0].id == 101L })
         }
+    }
+
+    @Test
+    fun `syncJournal skips divisions on 403`() = runTest {
+        coEvery { walletJournalDao.getMaxId(123L) } returns null
+        coEvery { esiApi.getWalletJournal(123L, any(), any()) } returns Response.error(403, okhttp3.ResponseBody.create(null, ""))
+
+        val result = repository.syncJournal(123L)
+
+        // 403 = 无权限，跳过该 division，整体仍成功
+        assertTrue(result.isSuccess)
     }
 
     @Test

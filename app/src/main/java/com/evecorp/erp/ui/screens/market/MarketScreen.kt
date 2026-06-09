@@ -17,6 +17,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
+import com.evecorp.erp.ui.formatIsk
+import com.evecorp.erp.ui.formatNumber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -217,18 +219,9 @@ private fun MarketOrderCard(orderWith: MarketOrderWith) {
 }
 
 private fun formatIsk(amount: Double): String {
-    return when {
-        amount >= 1_000_000_000 -> "${String.format("%.2f", amount / 1_000_000_000)}B ISK"
-        amount >= 1_000_000 -> "${String.format("%.1f", amount / 1_000_000)}M ISK"
-        amount >= 1_000 -> "${String.format("%.0f", amount / 1_000)}K ISK"
-        else -> "${String.format("%.2f", amount)} ISK"
-    }
+    return com.evecorp.erp.ui.formatIsk(amount)
 }
 
 private fun formatNumber(n: Int): String {
-    return when {
-        n >= 1_000_000 -> "${String.format("%.1f", n / 1_000_000.0)}M"
-        n >= 1_000 -> "${String.format("%.0f", n / 1_000.0)}K"
-        else -> n.toString()
-    }
+    return com.evecorp.erp.ui.formatNumber(n)
 }

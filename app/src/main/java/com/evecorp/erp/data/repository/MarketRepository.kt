@@ -1,7 +1,11 @@
 package com.evecorp.erp.data.repository
 
+import android.util.Log
+import com.evecorp.erp.Constants
 import com.evecorp.erp.data.local.dao.MarketOrderDao
+import com.evecorp.erp.data.local.dao.TypeNameCacheDao
 import com.evecorp.erp.data.local.entity.MarketOrderEntity
+import com.evecorp.erp.data.local.entity.TypeNameCacheEntity
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.dto.MarketOrderDto
 import kotlinx.coroutines.delay
@@ -10,10 +14,12 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "MarketRepo"
+
 @Singleton
 class MarketRepository @Inject constructor(
     private val marketOrderDao: MarketOrderDao,
-    private val typeNameCacheDao: com.evecorp.erp.data.local.dao.TypeNameCacheDao,
+    private val typeNameCacheDao: TypeNameCacheDao,
     private val esiApi: EveEsiApi
 ) {
     fun getActiveSellOrders(corpId: Long): Flow<List<MarketOrderEntity>> =
@@ -37,14 +43,15 @@ class MarketRepository @Inject constructor(
                 if (resp.isSuccessful) {
                     resp.body()?.let { names ->
                         typeNameCacheDao.insertAll(names.map {
-                            com.evecorp.erp.data.local.entity.TypeNameCacheEntity(
-                                typeId = it.id,
-                                name = it.name
-                            )
+                            TypeNameCacheEntity(typeId = it.id, name = it.name)
                         })
                     }
+                } else {
+                    Log.w(TAG, "syncTypeNames failed: ${resp.code()}")
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "syncTypeNames error", e)
+            }
         }
     }
 
@@ -55,7 +62,7 @@ class MarketRepository @Inject constructor(
             var totalPages = 1
 
             while (page <= totalPages) {
-                if (page > 1) delay(150L)
+                if (page > 1) delay(Constants.ESI_PAGE_DELAY_MS)
                 val response = esiApi.getMarketOrders(corpId, page = page)
                 if (response.isSuccessful) {
                     response.body()?.let { allOrders.addAll(it) }
@@ -71,7 +78,7 @@ class MarketRepository @Inject constructor(
             }
 
             marketOrderDao.deleteAll(corpId)
-            marketOrderDao.insertAll(allOrders.map { it.toEntity(corpId) })
+            marketOrderDao.insertAll(allOrders.mapNotNull { it.toEntityOrNull(corpId) })
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -83,8 +90,7 @@ class MarketRepository @Inject constructor(
             val response = esiApi.getCharacterOrders(characterId)
             if (response.isSuccessful) {
                 val orders = response.body() ?: emptyList()
-                // 个人订单 corporationId 设为 0 区分
-                marketOrderDao.insertAll(orders.map { it.toEntity(0) })
+                marketOrderDao.insertAll(orders.mapNotNull { it.toEntityOrNull(0) })
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("ESI error: ${response.code()}"))
@@ -95,19 +101,31 @@ class MarketRepository @Inject constructor(
     }
 }
 
-private fun MarketOrderDto.toEntity(corpId: Long) = MarketOrderEntity(
-    orderId = orderId,
-    corporationId = corpId,
-    typeId = typeId,
-    locationId = locationId,
-    isBuyOrder = isBuyOrder,
-    price = price,
-    volumeTotal = volumeTotal,
-    volumeRemain = volumeRemain,
-    issued = Instant.parse(issued).toEpochMilli(),
-    duration = duration,
-    state = state,
-    minVolume = minVolume,
-    range = range,
-    issuedBy = issuedBy
-)
+private fun MarketOrderDto.toEntityOrNull(corpId: Long): MarketOrderEntity? {
+    val issuedMs = issued.toEpochMillisOrNull() ?: return null
+    return MarketOrderEntity(
+        orderId = orderId,
+        corporationId = corpId,
+        typeId = typeId,
+        locationId = locationId,
+        isBuyOrder = isBuyOrder,
+        price = price,
+        volumeTotal = volumeTotal,
+        volumeRemain = volumeRemain,
+        issued = issuedMs,
+        duration = duration,
+        state = state,
+        minVolume = minVolume,
+        range = range,
+        issuedBy = issuedBy
+    )
+}
+
+private fun String.toEpochMillisOrNull(): Long? {
+    return try {
+        Instant.parse(this).toEpochMilli()
+    } catch (e: Exception) {
+        Log.w(TAG, "Failed to parse date: $this", e)
+        null
+    }
+}
