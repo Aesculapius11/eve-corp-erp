@@ -14,7 +14,7 @@ data class MarketOrderDto(
     @Json(name = "volume_remain") val volumeRemain: Int,
     @Json(name = "issued") val issued: String,
     @Json(name = "duration") val duration: Int,
-    @Json(name = "state") val state: String,
+    @Json(name = "state") val state: String = "active",
     @Json(name = "min_volume") val minVolume: Int = 1,
     @Json(name = "range") val range: String? = null,
     @Json(name = "issued_by") val issuedBy: Long? = null
