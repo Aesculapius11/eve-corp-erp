@@ -8,7 +8,7 @@ data class MarketOrderDto(
     @Json(name = "order_id") val orderId: Long,
     @Json(name = "type_id") val typeId: Long,
     @Json(name = "location_id") val locationId: Long,
-    @Json(name = "is_buy_order") val isBuyOrder: Boolean,
+    @Json(name = "is_buy_order") val isBuyOrder: Boolean = false,
     @Json(name = "price") val price: Double,
     @Json(name = "volume_total") val volumeTotal: Int,
     @Json(name = "volume_remain") val volumeRemain: Int,
