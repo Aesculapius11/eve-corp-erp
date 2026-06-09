@@ -1,5 +1,6 @@
 package com.evecorp.erp.data.repository
 
+import com.evecorp.erp.data.local.dao.BalanceSnapshotDao
 import com.evecorp.erp.data.local.dao.WalletBalanceDao
 import com.evecorp.erp.data.local.dao.WalletJournalDao
 import com.evecorp.erp.data.local.entity.WalletBalanceEntity
@@ -19,6 +20,7 @@ class WalletRepositoryTest {
 
     private lateinit var walletBalanceDao: WalletBalanceDao
     private lateinit var walletJournalDao: WalletJournalDao
+    private lateinit var balanceSnapshotDao: BalanceSnapshotDao
     private lateinit var esiApi: EveEsiApi
     private lateinit var repository: WalletRepository
 
@@ -26,8 +28,9 @@ class WalletRepositoryTest {
     fun setup() {
         walletBalanceDao = mockk(relaxed = true)
         walletJournalDao = mockk(relaxed = true)
+        balanceSnapshotDao = mockk(relaxed = true)
         esiApi = mockk(relaxed = true)
-        repository = WalletRepository(walletBalanceDao, walletJournalDao, esiApi)
+        repository = WalletRepository(walletBalanceDao, walletJournalDao, balanceSnapshotDao, esiApi)
     }
 
     @Test

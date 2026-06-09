@@ -14,9 +14,10 @@ import com.evecorp.erp.data.local.entity.*
         MarketOrderEntity::class,
         CorporationDivisionEntity::class,
         HangarItemEntity::class,
-        TypeNameCacheEntity::class
+        TypeNameCacheEntity::class,
+        BalanceSnapshotEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,4 +29,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun corporationDivisionDao(): CorporationDivisionDao
     abstract fun hangarItemDao(): HangarItemDao
     abstract fun typeNameCacheDao(): TypeNameCacheDao
+    abstract fun balanceSnapshotDao(): BalanceSnapshotDao
 }

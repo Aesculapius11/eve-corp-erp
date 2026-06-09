@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.evecorp.erp.Constants
 import com.evecorp.erp.auth.TokenManager
+import com.evecorp.erp.data.local.entity.BalanceSnapshotEntity
 import com.evecorp.erp.data.local.entity.SystemCostIndexEntity
 import com.evecorp.erp.data.local.entity.WalletBalanceEntity
 import com.evecorp.erp.data.local.entity.WalletJournalEntity
@@ -19,6 +20,7 @@ data class DashboardUiState(
     val balance: UiState<WalletBalanceEntity> = UiState.Loading,
     val journal: UiState<List<WalletJournalEntity>> = UiState.Loading,
     val costIndex: UiState<SystemCostIndexEntity> = UiState.Loading,
+    val balanceHistory: UiState<List<BalanceSnapshotEntity>> = UiState.Loading,
     val isRefreshing: Boolean = false
 )
 
@@ -35,9 +37,15 @@ class DashboardViewModel @Inject constructor(
     private val dataState: StateFlow<DashboardUiState> = combine(
         walletRepository.getBalance(corpId).map { it?.let { UiState.Success(it) } ?: UiState.Loading },
         walletRepository.getRecentJournal(corpId).map { UiState.Success(it) },
-        industryRepository.getCostIndex(Constants.HAAJINEN_SYSTEM_ID).map { it?.let { UiState.Success(it) } ?: UiState.Loading }
-    ) { balance, journal, costIndex ->
-        DashboardUiState(balance = balance, journal = journal, costIndex = costIndex)
+        industryRepository.getCostIndex(Constants.HAAJINEN_SYSTEM_ID).map { it?.let { UiState.Success(it) } ?: UiState.Loading },
+        walletRepository.getBalanceHistory(corpId).map { UiState.Success(it) }
+    ) { balance, journal, costIndex, history ->
+        DashboardUiState(
+            balance = balance,
+            journal = journal,
+            costIndex = costIndex,
+            balanceHistory = history
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
     val uiState: StateFlow<DashboardUiState> = combine(
@@ -56,6 +64,4 @@ class DashboardViewModel @Inject constructor(
             _isRefreshing.value = false
         }
     }
-
-
 }

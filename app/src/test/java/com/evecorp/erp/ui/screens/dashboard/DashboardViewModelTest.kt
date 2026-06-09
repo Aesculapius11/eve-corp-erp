@@ -13,6 +13,7 @@ class DashboardViewModelTest {
         assertTrue(state.balance is UiState.Loading)
         assertTrue(state.journal is UiState.Loading)
         assertTrue(state.costIndex is UiState.Loading)
+        assertTrue(state.balanceHistory is UiState.Loading)
         assertFalse(state.isRefreshing)
     }
 

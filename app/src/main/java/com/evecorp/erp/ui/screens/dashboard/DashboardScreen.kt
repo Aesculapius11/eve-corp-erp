@@ -15,7 +15,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
-import com.evecorp.erp.ui.formatDate
 import com.evecorp.erp.ui.formatIsk
 import com.evecorp.erp.ui.formatTimeAgo
 
@@ -49,15 +48,26 @@ fun DashboardScreen(
         ) {
             item { Spacer(Modifier.height(8.dp)) }
 
+            // 钱包余额卡片
             item { BalanceCard(uiState.balance) }
 
+            // 30 天余额趋势图
             item {
-                Text(stringResource(R.string.recent_journal), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "30 天余额趋势",
+                    style = MaterialTheme.typography.titleLarge
+                )
             }
-            item { JournalCard(uiState.journal) }
-
             item {
-                Text(stringResource(R.string.cost_index), style = MaterialTheme.typography.titleLarge)
+                BalanceHistoryCard(uiState.balanceHistory)
+            }
+
+            // 成本指数
+            item {
+                Text(
+                    stringResource(R.string.cost_index),
+                    style = MaterialTheme.typography.titleLarge
+                )
             }
             item { CostIndexCard(uiState.costIndex) }
 
@@ -98,41 +108,39 @@ private fun BalanceCard(state: UiState<com.evecorp.erp.data.local.entity.WalletB
 }
 
 @Composable
-private fun JournalCard(state: UiState<List<com.evecorp.erp.data.local.entity.WalletJournalEntity>>) {
+private fun BalanceHistoryCard(state: UiState<List<com.evecorp.erp.data.local.entity.BalanceSnapshotEntity>>) {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            when (state) {
-                is UiState.Loading -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                is UiState.Success -> {
-                    if (state.data.isEmpty()) {
-                        Text("暂无流水", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        state.data.take(10).forEach { entry ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(entry.refType, style = MaterialTheme.typography.bodyMedium)
-                                    Text(
-                                        formatDate(entry.date),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Text(
-                                    formatIsk(entry.amount),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (entry.amount >= 0) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.error
-                                )
-                            }
-                            if (entry != state.data.last()) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        }
+        when (state) {
+            is UiState.Loading -> Box(
+                modifier = Modifier.fillMaxWidth().height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+            is UiState.Success -> {
+                if (state.data.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "暂无历史数据，同步后将开始记录",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
+                } else {
+                    BalanceChart(
+                        snapshots = state.data,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
-                is UiState.Error -> Text(stringResource(R.string.error_generic), color = MaterialTheme.colorScheme.error)
+            }
+            is UiState.Error -> Box(
+                modifier = Modifier.fillMaxWidth().height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(stringResource(R.string.error_generic), color = MaterialTheme.colorScheme.error)
             }
         }
     }
