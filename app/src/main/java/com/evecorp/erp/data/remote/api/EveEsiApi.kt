@@ -48,11 +48,6 @@ interface EveEsiApi {
     ): Response<List<MarketOrderDto>>
 
     // --- Corporation ---
-    @GET("corporations/{corporation_id}/bills/")
-    suspend fun getBills(
-        @Path("corporation_id") corporationId: Long
-    ): Response<List<CorporationBillDto>>
-
     @GET("corporations/{corporation_id}/divisions/")
     suspend fun getDivisions(
         @Path("corporation_id") corporationId: Long

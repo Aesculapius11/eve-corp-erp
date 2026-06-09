@@ -21,19 +21,8 @@ class CorporationBillRepository @Inject constructor(
         corporationBillDao.getUnpaid(corpId)
 
     suspend fun syncBills(corpId: Long): Result<Unit> {
-        return try {
-            val response = esiApi.getBills(corpId)
-            if (response.isSuccessful) {
-                val bills = response.body() ?: emptyList()
-                corporationBillDao.deleteAll(corpId)
-                corporationBillDao.insertAll(bills.map { it.toEntity(corpId) })
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception("ESI error: ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        // NOTE: ESI 没有 bills 端点，此功能已废弃
+        return Result.success(Unit)
     }
 }
 

@@ -55,8 +55,6 @@ class EsiAuthManager @Inject constructor(
             "esi-corporations.read_structures.v1",
             "esi-corporations.read_titles.v1",
             "esi-corporations.track_members.v1",
-            // 军团账单
-            "esi-corporations.read_corporation_bills.v1",
             // 军团合同
             "esi-contracts.read_corporation_contracts.v1",
             // 军团击� mail
