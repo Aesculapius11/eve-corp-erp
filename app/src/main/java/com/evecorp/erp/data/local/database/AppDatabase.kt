@@ -12,7 +12,6 @@ import com.evecorp.erp.data.local.entity.*
         SystemCostIndexEntity::class,
         IndustryJobEntity::class,
         MarketOrderEntity::class,
-        CorporationBillEntity::class,
         CorporationDivisionEntity::class,
         HangarItemEntity::class,
         TypeNameCacheEntity::class
@@ -26,7 +25,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun systemCostIndexDao(): SystemCostIndexDao
     abstract fun industryJobDao(): IndustryJobDao
     abstract fun marketOrderDao(): MarketOrderDao
-    abstract fun corporationBillDao(): CorporationBillDao
     abstract fun corporationDivisionDao(): CorporationDivisionDao
     abstract fun hangarItemDao(): HangarItemDao
     abstract fun typeNameCacheDao(): TypeNameCacheDao

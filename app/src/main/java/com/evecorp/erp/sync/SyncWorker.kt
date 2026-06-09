@@ -21,7 +21,6 @@ class SyncWorker @AssistedInject constructor(
     private val walletRepository: WalletRepository,
     private val industryRepository: IndustryRepository,
     private val marketRepository: MarketRepository,
-    private val corporationBillRepository: CorporationBillRepository,
     private val hangarRepository: HangarRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -38,8 +37,7 @@ class SyncWorker @AssistedInject constructor(
                     async { walletRepository.syncJournal(corpId) },
                     async { industryRepository.syncCostIndices(listOf(Constants.HAAJINEN_SYSTEM_ID)) },
                     async { industryRepository.syncJobs(corpId) },
-                    async { marketRepository.syncOrders(corpId) },
-                    async { corporationBillRepository.syncBills(corpId) }
+                    async { marketRepository.syncOrders(corpId) }
                 )
                 jobs.awaitAll()
 

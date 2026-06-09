@@ -13,7 +13,6 @@ import androidx.navigation.compose.rememberNavController
 import com.evecorp.erp.auth.EsiAuthManager
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.ui.navigation.Screen
-import com.evecorp.erp.ui.screens.bills.BillsScreen
 import com.evecorp.erp.ui.screens.dashboard.DashboardScreen
 import com.evecorp.erp.ui.screens.hangar.HangarScreen
 import com.evecorp.erp.ui.screens.industry.IndustryScreen
@@ -72,7 +71,6 @@ fun EveCorpApp(
             composable(Screen.INDUSTRY.route) { IndustryScreen() }
             composable(Screen.MARKET.route) { MarketScreen() }
             composable(Screen.HANGAR.route) { HangarScreen() }
-            composable(Screen.BILLS.route) { BillsScreen() }
             composable(Screen.SETTINGS.route) {
                 SettingsScreen(
                     onLogout = {

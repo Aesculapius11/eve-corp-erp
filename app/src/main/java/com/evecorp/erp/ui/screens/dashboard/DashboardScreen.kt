@@ -76,17 +76,6 @@ fun DashboardScreen(
                 CostIndexCard(uiState.costIndex)
             }
 
-            // Unpaid Bills
-            item {
-                Text(
-                    stringResource(R.string.unpaid_bills),
-                    style = MaterialTheme.typography.titleLarge
-                )
-            }
-            item {
-                BillsCard(uiState.bills)
-            }
-
             item { Spacer(Modifier.height(16.dp)) }
         }
     }
@@ -131,7 +120,7 @@ private fun JournalCard(state: UiState<List<com.evecorp.erp.data.local.entity.Wa
                 is UiState.Loading -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 is UiState.Success -> {
                     if (state.data.isEmpty()) {
-                        Text(stringResource(R.string.empty_bills), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("暂无流水", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         state.data.take(10).forEach { entry ->
                             Row(
@@ -194,48 +183,6 @@ private fun CostItem(label: String, value: Double) {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-@Composable
-private fun BillsCard(state: UiState<List<com.evecorp.erp.data.local.entity.CorporationBillEntity>>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            when (state) {
-                is UiState.Loading -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                is UiState.Success -> {
-                    if (state.data.isEmpty()) {
-                        Text("暂无未支付账单 ✅", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        state.data.take(5).forEach { bill ->
-                            val daysLeft = ((bill.dueDate - System.currentTimeMillis()) / 86400000).toInt()
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(bill.billType, style = MaterialTheme.typography.bodyMedium)
-                                    Text(
-                                        if (daysLeft >= 0) stringResource(R.string.bill_due_days, daysLeft)
-                                        else stringResource(R.string.bill_overdue),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = if (daysLeft < 3) MaterialTheme.colorScheme.error
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Text(
-                                    formatIsk(bill.amount),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-                is UiState.Error -> Text(stringResource(R.string.error_generic), color = MaterialTheme.colorScheme.error)
-            }
-        }
     }
 }
 
