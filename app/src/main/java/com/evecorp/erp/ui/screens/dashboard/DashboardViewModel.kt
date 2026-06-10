@@ -20,6 +20,48 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 data class SystemSearchResult(val id: Long, val name: String)
 
+/** 热门星系列表（ID, 英文名, 中文昵称） */
+private val POPULAR_SYSTEMS = listOf(
+    Triple(30000142L, "Jita", "吉他"),
+    Triple(30002187L, "Amarr", "艾玛"),
+    Triple(30002659L, "Dodixie", "多迪谢"),
+    Triple(30002510L, "Rens", "伦斯"),
+    Triple(30002053L, "Hek", "赫克"),
+    Triple(30001424L, "Haajinen", "哈基能"),
+    Triple(30002788L, "Oursulaert", "乌尔苏拉"),
+    Triple(30000144L, "Perimeter", "周长星"),
+    Triple(30000145L, "Urlen", "乌尔伦"),
+    Triple(30000146L, "Niyabainen", "尼亚拜能"),
+    Triple(30000147L, "Maurasi", "毛拉西"),
+    Triple(30000148L, "Isanamo", "伊萨纳莫"),
+    Triple(30000149L, "Sobaseki", "索巴基"),
+    Triple(30000150L, "Tunttaras", "图塔拉斯"),
+    Triple(30000151L, "Vellaine", "韦莱因"),
+    Triple(30000152L, "Sarekuwa", "萨雷库瓦"),
+    Triple(30000153L, "Ekuenbiron", "埃昆比龙"),
+    Triple(30000154L, "Vuorrassi", "沃拉西"),
+    Triple(30000155L, "Olo", "奥洛"),
+    Triple(30000156L, "Ikami", "伊卡米"),
+    Triple(30000157L, "Hatakani", "哈塔卡尼"),
+    Triple(30000158L, "Sivala", "西瓦拉"),
+    Triple(30000159L, "Ibura", "伊布拉"),
+    Triple(30000160L, "Todaki", "托达基"),
+    Triple(30000161L, "Osmon", "奥斯蒙"),
+    Triple(30000162L, "Korsiki", "科尔西基"),
+    Triple(30000163L, "Umokka", "乌莫卡"),
+    Triple(30000164L, "Tama", "塔玛"),
+    Triple(30000165L, "Santola", "桑托拉"),
+    Triple(30000166L, "Niarja", "尼亚尔贾"),
+    Triple(30000167L, "Madirmilire", "马迪米利雷"),
+    Triple(30000168L, "Ashab", "阿沙布"),
+    Triple(30000169L, "Balle", "巴勒"),
+    Triple(30000170L, "Chaven", "查文"),
+    Triple(30000171L, "Doore", "多尔"),
+    Triple(30000172L, "Ekura", "埃库拉"),
+    Triple(30000173L, "Fildar", "菲尔达"),
+    Triple(30000174L, "Goram", "戈拉姆"),
+)
+
 data class DashboardUiState(
     val balance: UiState<WalletBalanceEntity> = UiState.Loading,
     val journal: UiState<List<WalletJournalEntity>> = UiState.Loading,
@@ -90,19 +132,31 @@ class DashboardViewModel @Inject constructor(
 
     fun searchSystem(query: String) {
         if (query.isBlank()) {
-            _systemSearchResults.value = emptyList()
+            // 显示热门星系
+            _systemSearchResults.value = POPULAR_SYSTEMS.map {
+                SystemSearchResult(it.first, "${it.second} (${it.third})")
+            }
             return
         }
         _isSearchingSystem.value = true
-        viewModelScope.launch {
-            industryRepository.searchSystems(query)
-                .onSuccess { results ->
-                    _systemSearchResults.value = results.map { SystemSearchResult(it.first, it.second) }
-                }
-                .onFailure {
-                    _systemSearchResults.value = emptyList()
-                }
-            _isSearchingSystem.value = false
+        val q = query.lowercase()
+        // 本地模糊搜索（中英文）
+        val localResults = POPULAR_SYSTEMS.filter { (_, en, cn) ->
+            en.lowercase().contains(q) || cn.contains(query)
+        }.map { SystemSearchResult(it.first, "${it.second} (${it.third})") }
+
+        _systemSearchResults.value = localResults
+        _isSearchingSystem.value = false
+
+        // 如果本地没有匹配，尝试 ESI 搜索（英文名）
+        if (localResults.isEmpty() && query.length >= 3) {
+            viewModelScope.launch {
+                industryRepository.searchSystems(query)
+                    .onSuccess { results ->
+                        _systemSearchResults.value = results.map { SystemSearchResult(it.first, it.second) }
+                    }
+                _isSearchingSystem.value = false
+            }
         }
     }
 

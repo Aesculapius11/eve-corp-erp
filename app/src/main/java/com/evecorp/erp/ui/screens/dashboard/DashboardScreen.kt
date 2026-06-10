@@ -152,6 +152,9 @@ private fun CostIndexHeader(
     var searchText by remember { mutableStateOf("") }
 
     if (showDialog) {
+        // 打开时加载热门星系
+        LaunchedEffect(Unit) { onSearch("") }
+
         AlertDialog(
             onDismissRequest = {
                 showDialog = false
@@ -171,7 +174,7 @@ private fun CostIndexHeader(
                             onSearch(it)
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("输入星系名称，如 Jita") },
+                        placeholder = { Text("搜索星系（中英文均可）") },
                         singleLine = true,
                         trailingIcon = {
                             if (isSearching) {
@@ -186,9 +189,8 @@ private fun CostIndexHeader(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     if (searchResults.isNotEmpty()) {
-                        // 限制高度避免弹窗过大
                         Column(
-                            modifier = Modifier.heightIn(max = 200.dp)
+                            modifier = Modifier.heightIn(max = 240.dp)
                         ) {
                             searchResults.forEach { result ->
                                 Surface(
