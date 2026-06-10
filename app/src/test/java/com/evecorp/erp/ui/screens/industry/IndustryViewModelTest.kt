@@ -11,15 +11,18 @@ class IndustryViewModelTest {
         assertEquals("全部", IndustryTab.ALL.label)
         assertEquals("制造", IndustryTab.MANUFACTURING.label)
         assertEquals("发明", IndustryTab.INVENTION.label)
-        assertEquals("拷贝", IndustryTab.COPYING.label)
+        assertEquals("研究", IndustryTab.RESEARCH.label)
     }
 
     @Test
     fun `IndustryTab enum has correct activity values`() {
-        assertNull(IndustryTab.ALL.activity)
-        assertEquals("manufacturing", IndustryTab.MANUFACTURING.activity)
-        assertEquals("invention", IndustryTab.INVENTION.activity)
-        assertEquals("copying", IndustryTab.COPYING.activity)
+        assertNull(IndustryTab.ALL.activities)
+        assertEquals(listOf("manufacturing"), IndustryTab.MANUFACTURING.activities)
+        assertEquals(listOf("invention"), IndustryTab.INVENTION.activities)
+        assertEquals(
+            listOf("researching_time_efficiency", "researching_material_efficiency"),
+            IndustryTab.RESEARCH.activities
+        )
     }
 
     @Test
