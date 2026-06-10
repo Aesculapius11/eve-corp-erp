@@ -51,7 +51,7 @@ interface EveEsiApi {
     @GET("corporations/{corporation_id}/divisions/")
     suspend fun getDivisions(
         @Path("corporation_id") corporationId: Long
-    ): Response<List<CorporationDivisionDto>>
+    ): Response<CorporationDivisionsResponse>
 
     @GET("corporations/{corporation_id}/assets/")
     suspend fun getAssets(

@@ -46,7 +46,9 @@ class HangarRepository @Inject constructor(
         return try {
             val response = esiApi.getDivisions(corpId)
             if (response.isSuccessful) {
-                val divisions = response.body() ?: emptyList()
+                val body = response.body()
+                // ESI 返回 { "hangar": [...], "wallet": [...] }，只取 hangar
+                val divisions = body?.hangar ?: emptyList()
                 corporationDivisionDao.deleteAll()
                 corporationDivisionDao.insertAll(
                     divisions.map {
