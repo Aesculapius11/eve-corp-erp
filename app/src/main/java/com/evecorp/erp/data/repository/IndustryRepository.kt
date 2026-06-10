@@ -4,8 +4,10 @@ import android.util.Log
 import com.evecorp.erp.Constants
 import com.evecorp.erp.data.local.dao.IndustryJobDao
 import com.evecorp.erp.data.local.dao.SystemCostIndexDao
+import com.evecorp.erp.data.local.dao.TypeNameCacheDao
 import com.evecorp.erp.data.local.entity.IndustryJobEntity
 import com.evecorp.erp.data.local.entity.SystemCostIndexEntity
+import com.evecorp.erp.data.local.entity.TypeNameCacheEntity
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.dto.IndustryJobDto
 import com.evecorp.erp.data.remote.dto.IndustrySystemDto
@@ -21,6 +23,7 @@ private const val TAG = "IndustryRepo"
 class IndustryRepository @Inject constructor(
     private val systemCostIndexDao: SystemCostIndexDao,
     private val industryJobDao: IndustryJobDao,
+    private val typeNameCacheDao: TypeNameCacheDao,
     private val esiApi: EveEsiApi
 ) {
     fun getAllCostIndices(): Flow<List<SystemCostIndexEntity>> = systemCostIndexDao.getAll()
@@ -73,6 +76,34 @@ class IndustryRepository @Inject constructor(
     fun getActiveJobsByActivity(corpId: Long, activity: String): Flow<List<IndustryJobEntity>> =
         industryJobDao.getActiveJobsByActivity(corpId, activity)
 
+    /** 获取物品名称，未缓存返回 "Unknown (typeId)" */
+    suspend fun getTypeName(typeId: Long): String {
+        return typeNameCacheDao.getName(typeId) ?: "Unknown ($typeId)"
+    }
+
+    /** 批量解析并缓存物品名称 */
+    suspend fun syncTypeNames(typeIds: List<Long>) {
+        val missing = typeIds.filter { typeNameCacheDao.getName(it) == null }
+        if (missing.isEmpty()) return
+        try {
+            // 分 chunk 查询，每批 100 个
+            for (chunk in missing.chunked(100)) {
+                val response = esiApi.postUniverseNames(chunk)
+                if (response.isSuccessful) {
+                    val entries = response.body()?.map {
+                        TypeNameCacheEntity(typeId = it.id, name = it.name)
+                    } ?: emptyList()
+                    if (entries.isNotEmpty()) {
+                        typeNameCacheDao.insertAll(entries)
+                    }
+                }
+                delay(Constants.ESI_PAGE_DELAY_MS)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to sync type names", e)
+        }
+    }
+
     suspend fun syncJobs(corpId: Long): Result<Unit> {
         return try {
             val allJobs = mutableListOf<IndustryJobDto>()
@@ -97,6 +128,13 @@ class IndustryRepository @Inject constructor(
 
             industryJobDao.deleteAll(corpId)
             industryJobDao.insertAll(allJobs.mapNotNull { it.toEntityOrNull(corpId) })
+
+            // 解析蓝图和产品名称
+            val typeIds = allJobs.mapNotNull { dto ->
+                listOfNotNull(dto.blueprintTypeId, dto.productTypeId)
+            }.flatten().distinct()
+            syncTypeNames(typeIds)
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

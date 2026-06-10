@@ -11,8 +11,14 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class IndustryJobWith(
+    val job: IndustryJobEntity,
+    val blueprintName: String,
+    val productName: String
+)
+
 data class IndustryUiState(
-    val jobs: UiState<List<IndustryJobEntity>> = UiState.Loading,
+    val jobs: UiState<List<IndustryJobWith>> = UiState.Loading,
     val selectedTab: IndustryTab = IndustryTab.ALL,
     val isRefreshing: Boolean = false,
     val syncError: String? = null
@@ -41,9 +47,17 @@ class IndustryViewModel @Inject constructor(
         industryRepository.getActiveJobs(corpId),
         _syncError
     ) { tab, allJobs, error ->
+        // 解析物品名称
+        val withNames = allJobs.map { job ->
+            IndustryJobWith(
+                job = job,
+                blueprintName = industryRepository.getTypeName(job.blueprintTypeId),
+                productName = job.productTypeId?.let { industryRepository.getTypeName(it) } ?: "—"
+            )
+        }
         val filtered = if (tab.activities != null) {
-            allJobs.filter { it.activityType in tab.activities }
-        } else allJobs
+            withNames.filter { it.job.activityType in tab.activities }
+        } else withNames
         IndustryUiState(
             jobs = UiState.Success(filtered),
             selectedTab = tab,

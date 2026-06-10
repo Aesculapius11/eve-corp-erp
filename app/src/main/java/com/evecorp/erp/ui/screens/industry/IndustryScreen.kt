@@ -113,8 +113,8 @@ fun IndustryScreen(
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(jobs.data, key = { it.jobId }) { job ->
-                                IndustryJobCard(job)
+                            items(jobs.data, key = { it.job.jobId }) { jobWith ->
+                                IndustryJobCard(jobWith)
                             }
                             item { Spacer(Modifier.height(8.dp)) }
                         }
@@ -129,7 +129,8 @@ fun IndustryScreen(
 }
 
 @Composable
-private fun IndustryJobCard(job: com.evecorp.erp.data.local.entity.IndustryJobEntity) {
+private fun IndustryJobCard(jobWith: IndustryJobWith) {
+    val job = jobWith.job
     val activityLabel = when (job.activityType) {
         "manufacturing" -> "制造"
         "invention" -> "发明"
@@ -186,7 +187,7 @@ private fun IndustryJobCard(job: com.evecorp.erp.data.local.entity.IndustryJobEn
             Spacer(Modifier.height(12.dp))
 
             Text(
-                "蓝图 ID: ${job.blueprintTypeId}  ·  产品 ID: ${job.productTypeId ?: "—"}",
+                "蓝图: ${jobWith.blueprintName}\n产品: ${jobWith.productName}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -2,6 +2,7 @@ package com.evecorp.erp.data.repository
 
 import com.evecorp.erp.data.local.dao.IndustryJobDao
 import com.evecorp.erp.data.local.dao.SystemCostIndexDao
+import com.evecorp.erp.data.local.dao.TypeNameCacheDao
 import com.evecorp.erp.data.local.entity.SystemCostIndexEntity
 import com.evecorp.erp.data.remote.api.EveEsiApi
 import com.evecorp.erp.data.remote.dto.CostIndexDto
@@ -18,6 +19,7 @@ class IndustryRepositoryTest {
 
     private lateinit var systemCostIndexDao: SystemCostIndexDao
     private lateinit var industryJobDao: IndustryJobDao
+    private lateinit var typeNameCacheDao: TypeNameCacheDao
     private lateinit var esiApi: EveEsiApi
     private lateinit var repository: IndustryRepository
 
@@ -25,8 +27,9 @@ class IndustryRepositoryTest {
     fun setup() {
         systemCostIndexDao = mockk(relaxed = true)
         industryJobDao = mockk(relaxed = true)
+        typeNameCacheDao = mockk(relaxed = true)
         esiApi = mockk(relaxed = true)
-        repository = IndustryRepository(systemCostIndexDao, industryJobDao, esiApi)
+        repository = IndustryRepository(systemCostIndexDao, industryJobDao, typeNameCacheDao, esiApi)
     }
 
     @Test
