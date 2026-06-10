@@ -4,26 +4,6 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
-data class CorporationDivisionsResponse(
-    @Json(name = "hangar") val hangar: List<CorporationDivisionDto> = emptyList(),
-    @Json(name = "wallet") val wallet: List<CorporationDivisionDto> = emptyList()
-)
-
-@JsonClass(generateAdapter = true)
-data class CorporationDivisionDto(
-    @Json(name = "division") val division: Int,
-    @Json(name = "name") val name: String = ""
-)
-
-@JsonClass(generateAdapter = true)
-data class HangarItemDto(
-    @Json(name = "item_id") val itemId: Long,
-    @Json(name = "type_id") val typeId: Long,
-    @Json(name = "quantity") val quantity: Int,
-    @Json(name = "location_flag") val locationFlag: String
-)
-
-@JsonClass(generateAdapter = true)
 data class UniverseNameDto(
     @Json(name = "id") val id: Long,
     @Json(name = "name") val name: String,

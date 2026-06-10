@@ -47,18 +47,6 @@ interface EveEsiApi {
         @Path("character_id") characterId: Long
     ): Response<List<MarketOrderDto>>
 
-    // --- Corporation ---
-    @GET("corporations/{corporation_id}/divisions/")
-    suspend fun getDivisions(
-        @Path("corporation_id") corporationId: Long
-    ): Response<CorporationDivisionsResponse>
-
-    @GET("corporations/{corporation_id}/assets/")
-    suspend fun getAssets(
-        @Path("corporation_id") corporationId: Long,
-        @Query("page") page: Int = 1
-    ): Response<List<HangarItemDto>>
-
     // --- Universe ---
     @POST("universe/names/")
     suspend fun postUniverseNames(

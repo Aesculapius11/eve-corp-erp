@@ -22,7 +22,6 @@ class SyncWorker @AssistedInject constructor(
     private val walletRepository: WalletRepository,
     private val industryRepository: IndustryRepository,
     private val marketRepository: MarketRepository,
-    private val hangarRepository: HangarRepository,
     private val typeNameCacheDao: TypeNameCacheDao
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -49,20 +48,6 @@ class SyncWorker @AssistedInject constructor(
                     async { runCatching { marketRepository.syncOrders(corpId) } }
                 )
                 jobs.awaitAll() // 每个都 catch 了，不会互相取消
-
-                // Hangar syncs less frequently (ESI cache = 1 hour)
-                // 使用 SharedPreferences 记录上次同步时间
-                val prefs = applicationContext.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
-                val lastHangarSync = prefs.getLong(KEY_LAST_HANGAR_SYNC, 0L)
-                val now = System.currentTimeMillis()
-                if (now - lastHangarSync > 3600_000L) {
-                    val divResult = runCatching { hangarRepository.syncDivisions(corpId) }
-                    val assetResult = runCatching { hangarRepository.syncAssets(corpId) }
-                    // 只在同步成功时更新时间戳，失败时下次仍会重试
-                    if (divResult.isSuccess && assetResult.isSuccess) {
-                        prefs.edit().putLong(KEY_LAST_HANGAR_SYNC, now).apply()
-                    }
-                }
             }
 
             Result.success()
@@ -74,7 +59,6 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "eve_corp_sync"
-        const val KEY_LAST_HANGAR_SYNC = "last_hangar_sync"
         const val KEY_CACHE_CLEARED_V2 = "cache_cleared_v2_zh"
 
         fun createPeriodicRequest(): PeriodicWorkRequest {

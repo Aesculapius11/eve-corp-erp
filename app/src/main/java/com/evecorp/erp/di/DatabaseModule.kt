@@ -31,8 +31,6 @@ object DatabaseModule {
     @Provides fun provideSystemCostIndexDao(db: AppDatabase): SystemCostIndexDao = db.systemCostIndexDao()
     @Provides fun provideIndustryJobDao(db: AppDatabase): IndustryJobDao = db.industryJobDao()
     @Provides fun provideMarketOrderDao(db: AppDatabase): MarketOrderDao = db.marketOrderDao()
-    @Provides fun provideCorporationDivisionDao(db: AppDatabase): CorporationDivisionDao = db.corporationDivisionDao()
-    @Provides fun provideHangarItemDao(db: AppDatabase): HangarItemDao = db.hangarItemDao()
     @Provides fun provideTypeNameCacheDao(db: AppDatabase): TypeNameCacheDao = db.typeNameCacheDao()
     @Provides fun provideBalanceSnapshotDao(db: AppDatabase): BalanceSnapshotDao = db.balanceSnapshotDao()
 }

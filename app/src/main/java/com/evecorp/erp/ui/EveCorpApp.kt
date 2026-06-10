@@ -20,7 +20,6 @@ import com.evecorp.erp.auth.EsiAuthManager
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.ui.navigation.Screen
 import com.evecorp.erp.ui.screens.dashboard.DashboardScreen
-import com.evecorp.erp.ui.screens.hangar.HangarScreen
 import com.evecorp.erp.ui.screens.industry.IndustryScreen
 import com.evecorp.erp.ui.screens.login.LoginScreen
 import com.evecorp.erp.ui.screens.market.MarketScreen
@@ -127,7 +126,6 @@ fun EveCorpApp(
             composable(Screen.DASHBOARD.route) { DashboardScreen() }
             composable(Screen.INDUSTRY.route) { IndustryScreen() }
             composable(Screen.MARKET.route) { MarketScreen() }
-            composable(Screen.HANGAR.route) { HangarScreen() }
             composable(Screen.SETTINGS.route) {
                 SettingsScreen(
                     onLogout = {
