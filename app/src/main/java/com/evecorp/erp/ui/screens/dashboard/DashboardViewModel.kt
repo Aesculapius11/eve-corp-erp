@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.evecorp.erp.Constants
 import com.evecorp.erp.auth.TokenManager
+import com.evecorp.erp.data.local.DashboardPreferences
 import com.evecorp.erp.data.local.entity.BalanceSnapshotEntity
 import com.evecorp.erp.data.local.entity.SystemCostIndexEntity
 import com.evecorp.erp.data.local.entity.WalletBalanceEntity
@@ -78,13 +79,14 @@ data class DashboardUiState(
 class DashboardViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val walletRepository: WalletRepository,
-    private val industryRepository: IndustryRepository
+    private val industryRepository: IndustryRepository,
+    private val dashboardPreferences: DashboardPreferences
 ) : ViewModel() {
 
     private val corpId: Long get() = tokenManager.corporationId
     private val _isRefreshing = MutableStateFlow(false)
-    private val _selectedSystemId = MutableStateFlow(Constants.HAAJINEN_SYSTEM_ID)
-    private val _selectedSystemName = MutableStateFlow("吉他")
+    private val _selectedSystemId = MutableStateFlow(dashboardPreferences.getCostIndexSystemId())
+    private val _selectedSystemName = MutableStateFlow(dashboardPreferences.getCostIndexSystemName())
     private val _systemSearchResults = MutableStateFlow<List<SystemSearchResult>>(emptyList())
     private val _isSearchingSystem = MutableStateFlow(false)
 
@@ -127,6 +129,7 @@ class DashboardViewModel @Inject constructor(
         _selectedSystemId.value = systemId
         _selectedSystemName.value = systemName
         _systemSearchResults.value = emptyList()
+        dashboardPreferences.setCostIndexSystem(systemId, systemName)
         viewModelScope.launch {
             industryRepository.syncCostIndices(listOf(systemId))
         }
