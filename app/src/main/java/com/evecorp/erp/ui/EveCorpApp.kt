@@ -1,6 +1,7 @@
 package com.evecorp.erp.ui
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -108,16 +109,18 @@ fun EveCorpApp(
             startDestination = if (isLoggedIn) Screen.DASHBOARD.route else Screen.LOGIN.route,
             modifier = Modifier.padding(innerPadding),
             enterTransition = {
-                fadeIn(tween(250)) + slideInVertically(tween(250)) { 30 }
+                fadeIn(tween(300, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f))) +
+                    slideInHorizontally(tween(300, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f))) { it / 8 }
             },
             exitTransition = {
                 fadeOut(tween(200))
             },
             popEnterTransition = {
-                fadeIn(tween(250)) + slideInVertically(tween(250)) { 30 }
+                fadeIn(tween(300, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
             },
             popExitTransition = {
-                fadeOut(tween(200))
+                fadeOut(tween(200)) +
+                    slideOutHorizontally(tween(200)) { it / 8 }
             }
         ) {
             composable(Screen.LOGIN.route) {

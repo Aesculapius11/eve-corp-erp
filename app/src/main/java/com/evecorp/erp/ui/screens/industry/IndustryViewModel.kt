@@ -65,6 +65,8 @@ class IndustryViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), IndustryUiState())
 
+    init { refresh() }
+
     fun selectTab(tab: IndustryTab) {
         _selectedTab.value = tab
     }

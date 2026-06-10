@@ -60,6 +60,8 @@ class MarketViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MarketUiState())
 
+    init { refresh() }
+
     fun selectTab(tab: MarketTab) {
         _selectedTab.value = tab
     }

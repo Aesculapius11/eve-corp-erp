@@ -27,7 +27,6 @@ fun MarketScreen(
     viewModel: MarketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { viewModel.refresh() }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

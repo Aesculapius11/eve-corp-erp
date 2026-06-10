@@ -125,6 +125,8 @@ class DashboardViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
+    init { refresh() }
+
     fun selectSystem(systemId: Long, systemName: String) {
         _selectedSystemId.value = systemId
         _selectedSystemName.value = systemName
