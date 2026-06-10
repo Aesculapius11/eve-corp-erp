@@ -18,11 +18,11 @@ data class IndustryUiState(
     val syncError: String? = null
 )
 
-enum class IndustryTab(val label: String, val activity: String?) {
+enum class IndustryTab(val label: String, val activities: List<String>?) {
     ALL("全部", null),
-    MANUFACTURING("制造", "manufacturing"),
-    INVENTION("发明", "invention"),
-    COPYING("拷贝", "copying")
+    MANUFACTURING("制造", listOf("manufacturing")),
+    INVENTION("发明", listOf("invention")),
+    RESEARCH("研究", listOf("researching_time_efficiency", "researching_material_efficiency"))
 }
 
 @HiltViewModel
@@ -40,8 +40,8 @@ class IndustryViewModel @Inject constructor(
         industryRepository.getActiveJobs(corpId),
         _syncError
     ) { tab, allJobs, error ->
-        val filtered = if (tab.activity != null) {
-            allJobs.filter { it.activityType == tab.activity }
+        val filtered = if (tab.activities != null) {
+            allJobs.filter { it.activityType in tab.activities }
         } else allJobs
         IndustryUiState(
             jobs = UiState.Success(filtered),

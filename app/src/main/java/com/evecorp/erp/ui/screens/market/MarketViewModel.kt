@@ -20,7 +20,6 @@ data class MarketUiState(
     val sellOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
     val buyOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
     val selectedTab: MarketTab = MarketTab.SELL,
-    val searchQuery: String = "",
     val isRefreshing: Boolean = false,
     val syncError: String? = null
 )
@@ -38,15 +37,13 @@ class MarketViewModel @Inject constructor(
 
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(MarketTab.SELL)
-    private val _searchQuery = MutableStateFlow("")
     private val _syncError = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<MarketUiState> = combine(
         _selectedTab,
-        _searchQuery,
         marketRepository.getAllActiveOrders(),
         _syncError
-    ) { tab, query, allOrders, error ->
+    ) { tab, allOrders, error ->
         val withNames = allOrders.map { order ->
             MarketOrderWith(
                 order = order,
@@ -55,23 +52,16 @@ class MarketViewModel @Inject constructor(
         }
         val sellOrders = withNames.filter { !it.order.isBuyOrder }
         val buyOrders = withNames.filter { it.order.isBuyOrder }
-        val filteredSell = filterOrders(sellOrders, query)
-        val filteredBuy = filterOrders(buyOrders, query)
         MarketUiState(
-            sellOrders = UiState.Success(filteredSell),
-            buyOrders = UiState.Success(filteredBuy),
+            sellOrders = UiState.Success(sellOrders),
+            buyOrders = UiState.Success(buyOrders),
             selectedTab = tab,
-            searchQuery = query,
             syncError = error
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MarketUiState())
 
     fun selectTab(tab: MarketTab) {
         _selectedTab.value = tab
-    }
-
-    fun updateSearch(query: String) {
-        _searchQuery.value = query
     }
 
     fun refresh() {
@@ -86,15 +76,6 @@ class MarketViewModel @Inject constructor(
             // 解析物品名
             val allOrders = marketRepository.getAllActiveOrders().first()
             marketRepository.syncTypeNames(allOrders)
-        }
-    }
-
-    private fun filterOrders(orders: List<MarketOrderWith>, query: String): List<MarketOrderWith> {
-        if (query.isBlank()) return orders
-        return orders.filter {
-            it.typeName.contains(query, ignoreCase = true) ||
-                it.order.typeId.toString().contains(query, ignoreCase = true) ||
-                it.order.locationId.toString().contains(query, ignoreCase = true)
         }
     }
 }
