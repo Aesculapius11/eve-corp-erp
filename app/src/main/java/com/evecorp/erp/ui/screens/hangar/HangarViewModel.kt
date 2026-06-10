@@ -8,17 +8,16 @@ import com.evecorp.erp.data.local.entity.HangarItemEntity
 import com.evecorp.erp.data.repository.HangarRepository
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class HangarUiState(
-    val divisions: UiState<List<CorporationDivisionEntity>> = UiState.Loading,
+    val divisions: List<CorporationDivisionEntity> = emptyList(),
     val selectedDivision: CorporationDivisionEntity? = null,
-    val items: UiState<List<HangarItemWith>> = UiState.Loading,
+    val items: List<HangarItemWith> = emptyList(),
+    val isLoading: Boolean = true,
     val searchQuery: String = "",
-    val isRefreshing: Boolean = false,
     val syncError: String? = null
 )
 
@@ -27,7 +26,6 @@ data class HangarItemWith(
     val typeName: String
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HangarViewModel @Inject constructor(
     private val tokenManager: TokenManager,
@@ -38,38 +36,57 @@ class HangarViewModel @Inject constructor(
     private val _selectedDivisionId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
     private val _syncError = MutableStateFlow<String?>(null)
+    private val _isLoading = MutableStateFlow(true)
 
-    // 所有 divisions
-    private val divisionsFlow: StateFlow<List<CorporationDivisionEntity>> =
-        hangarRepository.getAllDivisions()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // 所有 divisions（单个 Room Flow 订阅）
+    private val _divisions = MutableStateFlow<List<CorporationDivisionEntity>>(emptyList())
 
-    // 选中的 division（自动回退逻辑）
-    private val resolvedDivision: StateFlow<CorporationDivisionEntity?> = combine(
-        divisionsFlow,
-        _selectedDivisionId
-    ) { divisions, selectedId ->
-        // 优先：用户选中的 → 主仓库 → 第一个
-        divisions.find { it.divisionId == selectedId }
-            ?: divisions.firstOrNull { it.isMain }
-            ?: divisions.firstOrNull()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    // 当前选中的 division
+    private val _resolvedDivision = MutableStateFlow<CorporationDivisionEntity?>(null)
 
-    // 当前选中 division 的物品列表
-    private val itemsFlow: StateFlow<List<HangarItemEntity>> =
-        resolvedDivision.flatMapLatest { division ->
-            if (division == null) flowOf(emptyList())
-            else hangarRepository.getItemsByDivision(division.divisionId)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // 当前 division 的物品
+    private val _items = MutableStateFlow<List<HangarItemEntity>>(emptyList())
 
-    // 最终 UI 状态
-    val uiState: StateFlow<HangarUiState> = combine(
-        divisionsFlow,
-        resolvedDivision,
-        itemsFlow,
-        _searchQuery,
-        _syncError
-    ) { divisions, selectedDiv, items, query, error ->
+    val uiState: StateFlow<HangarUiState> = MutableStateFlow(HangarUiState())
+
+    init {
+        // 监听 divisions 变化
+        viewModelScope.launch {
+            hangarRepository.getAllDivisions().collect { divisions ->
+                _divisions.value = divisions
+                // 自动选择 division
+                val current = _resolvedDivision.value
+                if (current == null || divisions.none { it.divisionId == current.divisionId }) {
+                    _resolvedDivision.value = divisions.firstOrNull { it.isMain }
+                        ?: divisions.firstOrNull()
+                }
+                _isLoading.value = false
+                updateUiState()
+            }
+        }
+
+        // 监听选中 division 变化，更新物品列表
+        viewModelScope.launch {
+            _resolvedDivision.collect { division ->
+                if (division == null) {
+                    _items.value = emptyList()
+                    updateUiState()
+                } else {
+                    hangarRepository.getItemsByDivision(division.divisionId).collect { items ->
+                        _items.value = items
+                        updateUiState()
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun updateUiState() {
+        val divisions = _divisions.value
+        val selectedDiv = _resolvedDivision.value
+        val items = _items.value
+        val query = _searchQuery.value
+
         val withNames = items.map { item ->
             HangarItemWith(
                 item = item,
@@ -79,33 +96,43 @@ class HangarViewModel @Inject constructor(
         val filtered = if (query.isBlank()) withNames
         else withNames.filter { it.typeName.contains(query, ignoreCase = true) }
 
-        HangarUiState(
-            divisions = UiState.Success(divisions),
+        (uiState as MutableStateFlow).value = HangarUiState(
+            divisions = divisions,
             selectedDivision = selectedDiv,
-            items = UiState.Success(filtered),
+            items = filtered,
+            isLoading = _isLoading.value,
             searchQuery = query,
-            syncError = error
+            syncError = _syncError.value
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HangarUiState())
+    }
 
     fun selectDivision(division: CorporationDivisionEntity) {
-        _selectedDivisionId.value = division.divisionId
+        _resolvedDivision.value = division
+        viewModelScope.launch { updateUiState() }
     }
 
     fun updateSearch(query: String) {
         _searchQuery.value = query
+        viewModelScope.launch { updateUiState() }
     }
 
     fun refresh() {
         viewModelScope.launch {
             _syncError.value = null
+            _isLoading.value = true
+            updateUiState()
+
             hangarRepository.syncDivisions(corpId).onFailure { e ->
                 _syncError.value = "部门同步失败: ${e.message}"
+                _isLoading.value = false
+                updateUiState()
                 return@launch
             }
             hangarRepository.syncAssets(corpId).onFailure { e ->
                 _syncError.value = "资产同步失败: ${e.message}"
             }
+            _isLoading.value = false
+            // divisions 的 Flow 会自动触发更新
         }
     }
 

@@ -79,36 +79,34 @@ fun HangarScreen(
             }
 
             // Division chips
-            when (val divisions = uiState.divisions) {
-                is UiState.Success -> {
-                    ScrollableTabRow(
-                        selectedTabIndex = divisions.data.indexOfFirst { it.divisionId == uiState.selectedDivision?.divisionId }.coerceAtLeast(0),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        divisions.data.forEach { division ->
-                            Tab(
-                                selected = division.divisionId == uiState.selectedDivision?.divisionId,
-                                onClick = { viewModel.selectDivision(division) },
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (division.isMain) {
-                                            Icon(
-                                                Icons.Filled.Star,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(Modifier.width(4.dp))
-                                        }
-                                        Text(division.name.ifEmpty { "Division ${division.divisionKey}" })
+            if (uiState.isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            } else if (uiState.divisions.isNotEmpty()) {
+                ScrollableTabRow(
+                    selectedTabIndex = uiState.divisions.indexOfFirst { it.divisionId == uiState.selectedDivision?.divisionId }.coerceAtLeast(0),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    uiState.divisions.forEach { division ->
+                        Tab(
+                            selected = division.divisionId == uiState.selectedDivision?.divisionId,
+                            onClick = { viewModel.selectDivision(division) },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (division.isMain) {
+                                        Icon(
+                                            Icons.Filled.Star,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(Modifier.width(4.dp))
                                     }
+                                    Text(division.name.ifEmpty { "Division ${division.divisionKey}" })
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
-                is UiState.Loading -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                else -> {}
             }
 
             // Search bar
@@ -122,30 +120,24 @@ fun HangarScreen(
             )
 
             // Items list
-            when (val items = uiState.items) {
-                is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            when {
+                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-                is UiState.Success -> {
-                    if (items.data.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.empty_hangar), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            item { Spacer(Modifier.height(4.dp)) }
-                            items(items.data, key = { it.item.itemId }) { hangarItem ->
-                                HangarItemCard(hangarItem)
-                            }
-                            item { Spacer(Modifier.height(16.dp)) }
-                        }
-                    }
+                uiState.items.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.empty_hangar), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                is UiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.error_generic), color = MaterialTheme.colorScheme.error)
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item { Spacer(Modifier.height(4.dp)) }
+                        items(uiState.items, key = { it.item.itemId }) { hangarItem ->
+                            HangarItemCard(hangarItem)
+                        }
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
                 }
             }
         }
