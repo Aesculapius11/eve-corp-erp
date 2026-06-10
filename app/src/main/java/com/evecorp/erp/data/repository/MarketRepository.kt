@@ -39,15 +39,19 @@ class MarketRepository @Inject constructor(
         val missing = typeIds.filter { typeNameCacheDao.getName(it) == null }
         if (missing.isNotEmpty()) {
             try {
-                val resp = esiApi.postUniverseNames(missing)
-                if (resp.isSuccessful) {
-                    resp.body()?.let { names ->
-                        typeNameCacheDao.insertAll(names.map {
-                            TypeNameCacheEntity(typeId = it.id, name = it.name)
-                        })
+                // 分 chunk 查询，每批 100 个
+                for (chunk in missing.chunked(100)) {
+                    val resp = esiApi.postUniverseNames(chunk)
+                    if (resp.isSuccessful) {
+                        resp.body()?.let { names ->
+                            typeNameCacheDao.insertAll(names.map {
+                                TypeNameCacheEntity(typeId = it.id, name = it.name)
+                            })
+                        }
+                    } else {
+                        Log.w(TAG, "syncTypeNames failed: ${resp.code()}")
                     }
-                } else {
-                    Log.w(TAG, "syncTypeNames failed: ${resp.code()}")
+                    delay(Constants.ESI_PAGE_DELAY_MS)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "syncTypeNames error", e)

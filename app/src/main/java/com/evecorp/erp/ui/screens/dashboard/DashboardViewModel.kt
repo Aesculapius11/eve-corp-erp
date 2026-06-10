@@ -110,14 +110,16 @@ class DashboardViewModel @Inject constructor(
         _isRefreshing,
         _selectedSystemId,
         _selectedSystemName,
-        _systemSearchResults
-    ) { data, refreshing, systemId, systemName, searchResults ->
+        combine(_systemSearchResults, _isSearchingSystem) { results, searching ->
+            results to searching
+        }
+    ) { data, refreshing, systemId, systemName, (searchResults, searching) ->
         data.copy(
             isRefreshing = refreshing,
             selectedSystemId = systemId,
             selectedSystemName = systemName,
             systemSearchResults = searchResults,
-            isSearchingSystem = _isSearchingSystem.value
+            isSearchingSystem = searching
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 

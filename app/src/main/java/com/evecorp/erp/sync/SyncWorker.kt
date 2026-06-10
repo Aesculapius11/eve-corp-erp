@@ -42,11 +42,14 @@ class SyncWorker @AssistedInject constructor(
                 jobs.awaitAll() // 每个都 catch 了，不会互相取消
 
                 // Hangar syncs less frequently (ESI cache = 1 hour)
-                val lastHangarSync = inputData.getLong(KEY_LAST_HANGAR_SYNC, 0)
+                // 使用 SharedPreferences 记录上次同步时间
+                val prefs = applicationContext.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
+                val lastHangarSync = prefs.getLong(KEY_LAST_HANGAR_SYNC, 0L)
                 val now = System.currentTimeMillis()
-                if (now - lastHangarSync > 3600_000) {
+                if (now - lastHangarSync > 3600_000L) {
                     runCatching { hangarRepository.syncDivisions(corpId) }
                     runCatching { hangarRepository.syncAssets(corpId) }
+                    prefs.edit().putLong(KEY_LAST_HANGAR_SYNC, now).apply()
                 }
             }
 
