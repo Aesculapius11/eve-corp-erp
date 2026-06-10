@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.startup.Initializer
 import androidx.work.Configuration
 import androidx.work.WorkManager
+import com.evecorp.erp.notification.AlertWorker
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -32,6 +33,13 @@ class SyncInitializer : Initializer<WorkManager> {
             SyncWorker.WORK_NAME,
             androidx.work.ExistingPeriodicWorkPolicy.KEEP,
             SyncWorker.createPeriodicRequest()
+        )
+
+        // Schedule periodic alerts (industry + market)
+        workManager.enqueueUniquePeriodicWork(
+            AlertWorker.WORK_NAME,
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            AlertWorker.createPeriodicRequest()
         )
 
         return workManager
