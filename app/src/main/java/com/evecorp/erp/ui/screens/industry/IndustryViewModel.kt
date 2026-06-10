@@ -22,6 +22,7 @@ enum class IndustryTab(val label: String, val activities: List<String>?) {
     ALL("全部", null),
     MANUFACTURING("制造", listOf("manufacturing")),
     INVENTION("发明", listOf("invention")),
+    COPYING("拷贝", listOf("copying")),
     RESEARCH("研究", listOf("researching_time_efficiency", "researching_material_efficiency"))
 }
 
