@@ -18,29 +18,28 @@ class TokenRefresher @Inject constructor(
     @Named("plain") private val okHttpClient: OkHttpClient
 ) {
     private val mutex = Mutex()
-    private var cachedToken: String? = null
 
     /**
      * 同步刷新 token，供 Interceptor 调用。
      * 用 Mutex 确保并发时只刷新一次。
      */
     fun refreshBlocking(): String? {
-        // 快速路径：如果已经有缓存的 token，直接返回
-        cachedToken?.let { return it }
         return runBlocking {
             mutex.withLock {
-                // 双重检查：拿到锁后再检查一次
-                cachedToken?.let { return@withLock it }
+                // 检查是否仍然过期（可能在等待锁期间已被其他线程刷新）
+                if (!tokenManager.isTokenExpired()) {
+                    return@withLock tokenManager.getAccessToken()
+                }
                 val result = refreshToken()
-                cachedToken = result
-                result
+                // refreshToken 内部已调用 tokenManager.saveTokens，所以直接返回最新 token
+                result?.let { tokenManager.getAccessToken() }
             }
         }
     }
 
     /** 清除缓存的 token（登录/登出时调用） */
     fun clearCache() {
-        cachedToken = null
+        // 缓存已移除，此方法保留以保持接口兼容
     }
 
     private suspend fun refreshToken(): String? {
@@ -71,7 +70,6 @@ class TokenRefresher @Inject constructor(
             } else {
                 if (response.code == 400 || response.code == 401) {
                     tokenManager.logout()
-                    cachedToken = null
                 }
                 null
             }

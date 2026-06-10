@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.evecorp.erp.auth.AuthStateManager
 import com.evecorp.erp.auth.EsiAuthManager
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.ui.navigation.Screen
@@ -32,13 +33,26 @@ import com.evecorp.erp.ui.theme.ThemeManager
 fun EveCorpApp(
     esiAuthManager: EsiAuthManager,
     tokenManager: TokenManager,
-    themeManager: ThemeManager
+    themeManager: ThemeManager,
+    authStateManager: AuthStateManager
 ) {
     val navController = rememberNavController()
     val isLoggedIn = tokenManager.isLoggedIn()
     val screens = Screen.entries.filter { it.showInNavBar }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    // 监听 token 过期事件，自动跳转登录页
+    val isTokenExpired by authStateManager.tokenExpired.collectAsState()
+    LaunchedEffect(isTokenExpired) {
+        if (isTokenExpired && navController.currentDestination?.route != Screen.LOGIN.route) {
+            tokenManager.logout()
+            authStateManager.reset()
+            navController.navigate(Screen.LOGIN.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
 
     // 隐藏登录页的底部导航栏
     val showBottomBar = currentDestination?.route != Screen.LOGIN.route

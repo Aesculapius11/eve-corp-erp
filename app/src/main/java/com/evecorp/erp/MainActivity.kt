@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.evecorp.erp.auth.AuthStateManager
 import com.evecorp.erp.auth.EsiAuthManager
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.ui.EveCorpApp
@@ -20,6 +21,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var esiAuthManager: EsiAuthManager
     @Inject lateinit var tokenManager: TokenManager
     @Inject lateinit var themeManager: ThemeManager
+    @Inject lateinit var authStateManager: AuthStateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +32,8 @@ class MainActivity : ComponentActivity() {
                 EveCorpApp(
                     esiAuthManager = esiAuthManager,
                     tokenManager = tokenManager,
-                    themeManager = themeManager
+                    themeManager = themeManager,
+                    authStateManager = authStateManager
                 )
             }
         }
