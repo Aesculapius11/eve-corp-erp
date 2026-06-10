@@ -15,8 +15,11 @@ interface TypeNameCacheDao {
     @Query("SELECT * FROM type_name_cache WHERE typeId IN (:typeIds)")
     suspend fun getByTypeIds(typeIds: List<Long>): List<TypeNameCacheEntity>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(entries: List<TypeNameCacheEntity>)
+
+    @Query("DELETE FROM type_name_cache")
+    suspend fun deleteAll()
 
     @Query("SELECT COUNT(*) FROM type_name_cache")
     suspend fun count(): Int

@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.evecorp.erp.Constants
 import com.evecorp.erp.auth.TokenManager
+import com.evecorp.erp.data.local.dao.TypeNameCacheDao
 import com.evecorp.erp.data.repository.*
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -21,13 +22,21 @@ class SyncWorker @AssistedInject constructor(
     private val walletRepository: WalletRepository,
     private val industryRepository: IndustryRepository,
     private val marketRepository: MarketRepository,
-    private val hangarRepository: HangarRepository
+    private val hangarRepository: HangarRepository,
+    private val typeNameCacheDao: TypeNameCacheDao
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
         if (!tokenManager.isLoggedIn()) return Result.failure()
 
         val corpId = tokenManager.corporationId
+
+        // 一次性清理旧的英文物品名缓存，强制重新拉取中文名
+        val syncPrefs = applicationContext.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
+        if (!syncPrefs.getBoolean(KEY_CACHE_CLEARED_V2, false)) {
+            runCatching { typeNameCacheDao.deleteAll() }
+            syncPrefs.edit().putBoolean(KEY_CACHE_CLEARED_V2, true).apply()
+        }
 
         return try {
             coroutineScope {
@@ -62,8 +71,8 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "eve_corp_sync"
-
         const val KEY_LAST_HANGAR_SYNC = "last_hangar_sync"
+        const val KEY_CACHE_CLEARED_V2 = "cache_cleared_v2_zh"
 
         fun createPeriodicRequest(): PeriodicWorkRequest {
             val constraints = Constraints.Builder()
