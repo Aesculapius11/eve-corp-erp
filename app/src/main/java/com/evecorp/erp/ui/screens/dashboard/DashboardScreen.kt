@@ -78,17 +78,21 @@ fun DashboardScreen(
             // ── 30 天资产变化 ──
             item {
                 SectionHeader(
-                    icon = Icons.Outlined.TrendingUp,
+                    icon = Icons.Outlined.ShowChart,
                     title = "30 天资产变化"
                 )
             }
             item { BalanceHistoryCard(uiState.balanceHistory) }
 
-            // ── 成本指数 ──
+            // ── 成本指数（可切换星系） ──
             item {
-                SectionHeader(
-                    icon = Icons.Outlined.Analytics,
-                    title = stringResource(R.string.cost_index)
+                CostIndexHeader(
+                    systemName = uiState.selectedSystemName,
+                    searchResults = uiState.systemSearchResults,
+                    isSearching = uiState.isSearchingSystem,
+                    onSearch = { viewModel.searchSystem(it) },
+                    onSelectSystem = { id, name -> viewModel.selectSystem(id, name) },
+                    onClearSearch = { viewModel.clearSearchResults() }
                 )
             }
             item { CostIndexCard(uiState.costIndex) }
@@ -127,6 +131,156 @@ private fun SectionHeader(icon: ImageVector, title: String) {
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold
         )
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Cost Index Header — Clickable system name with search dialog
+// ═══════════════════════════════════════════════════════════════
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CostIndexHeader(
+    systemName: String,
+    searchResults: List<SystemSearchResult>,
+    isSearching: Boolean,
+    onSearch: (String) -> Unit,
+    onSelectSystem: (Long, String) -> Unit,
+    onClearSearch: () -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDialog = false
+                searchText = ""
+                onClearSearch()
+            },
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text("切换星系", fontWeight = FontWeight.SemiBold)
+            },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = searchText,
+                        onValueChange = {
+                            searchText = it
+                            onSearch(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("输入星系名称，如 Jita") },
+                        singleLine = true,
+                        trailingIcon = {
+                            if (isSearching) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (searchResults.isNotEmpty()) {
+                        // 限制高度避免弹窗过大
+                        Column(
+                            modifier = Modifier.heightIn(max = 200.dp)
+                        ) {
+                            searchResults.forEach { result ->
+                                Surface(
+                                    onClick = {
+                                        onSelectSystem(result.id, result.name)
+                                        showDialog = false
+                                        searchText = ""
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.Transparent
+                                ) {
+                                    Text(
+                                        text = result.name,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                            }
+                        }
+                    } else if (searchText.length >= 2 && !isSearching) {
+                        Text(
+                            "未找到匹配的星系",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    searchText = ""
+                    onClearSearch()
+                }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    // 可点击的标题行
+    Surface(
+        onClick = { showDialog = true },
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(vertical = 4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Analytics,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            Text(
+                text = stringResource(R.string.cost_index),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            // 星系名称标签
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Text(
+                    text = systemName,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            Icon(
+                imageVector = Icons.Outlined.SwapHoriz,
+                contentDescription = "切换星系",
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

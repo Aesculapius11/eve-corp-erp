@@ -65,6 +65,11 @@ interface EveEsiApi {
         @Body typeIds: List<Long>
     ): Response<List<UniverseNameDto>>
 
+    @POST("universe/ids/")
+    suspend fun searchUniverseIds(
+        @Body names: List<String>
+    ): Response<List<UniverseNameDto>>
+
     // --- Character roles ---
     @GET("characters/{character_id}/roles/")
     suspend fun getCharacterRoles(

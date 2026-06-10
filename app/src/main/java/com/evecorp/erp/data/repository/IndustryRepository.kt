@@ -28,6 +28,24 @@ class IndustryRepository @Inject constructor(
     fun getCostIndex(systemId: Long): Flow<SystemCostIndexEntity?> =
         systemCostIndexDao.getBySystemId(systemId)
 
+    /** 按名称搜索星系，返回 solar_system 类型的结果 */
+    suspend fun searchSystems(query: String): Result<List<Pair<Long, String>>> {
+        return try {
+            val response = esiApi.searchUniverseIds(listOf(query))
+            if (response.isSuccessful) {
+                val results = response.body()
+                    ?.filter { it.category == "solar_system" }
+                    ?.map { it.id to it.name }
+                    ?: emptyList()
+                Result.success(results)
+            } else {
+                Result.failure(Exception("ESI error: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun syncCostIndices(interestingSystemIds: List<Long> = emptyList()): Result<Unit> {
         return try {
             val response = esiApi.getIndustrySystems()
