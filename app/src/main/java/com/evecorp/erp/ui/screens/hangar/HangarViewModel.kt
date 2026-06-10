@@ -27,7 +27,6 @@ data class HangarItemWith(
     val typeName: String
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HangarViewModel @Inject constructor(
     private val tokenManager: TokenManager,
@@ -39,44 +38,52 @@ class HangarViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     private val _syncError = MutableStateFlow<String?>(null)
 
-    private val _itemsWithNames: Flow<List<HangarItemWith>> = _selectedDivision
-        .filterNotNull()
-        .flatMapLatest { division ->
-            hangarRepository.getItemsByDivision(division.divisionId).map { items ->
-                items.map { item ->
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<HangarUiState> = combine(
+        hangarRepository.getAllDivisions(),
+        _selectedDivision,
+        _searchQuery,
+        _syncError
+    ) { divisions, selected, query, error ->
+        // 自动选择：优先选中的 → 主仓库 → 第一个
+        val selectedDiv = selected
+            ?: divisions.firstOrNull { it.isMain }
+            ?: divisions.firstOrNull()
+
+        HangarUiState(
+            divisions = UiState.Success(divisions),
+            selectedDivision = selectedDiv,
+            items = UiState.Loading, // 先占位，下面再计算真实 items
+            searchQuery = query,
+            syncError = error
+        )
+    }.flatMapLatest { partial ->
+        val div = partial.selectedDivision
+        if (div == null) {
+            // divisions 为空 → emit 一个 items=Success(empty) 的状态，不再永远 Loading
+            flowOf(partial.copy(items = UiState.Success(emptyList())))
+        } else {
+            hangarRepository.getItemsByDivision(div.divisionId).map { items ->
+                val withNames = items.map { item ->
                     HangarItemWith(
                         item = item,
                         typeName = hangarRepository.getTypeName(item.typeId)
                     )
                 }
+                val filtered = if (partial.searchQuery.isBlank()) withNames
+                else withNames.filter { it.typeName.contains(partial.searchQuery, ignoreCase = true) }
+                partial.copy(items = UiState.Success(filtered))
             }
         }
-
-    val uiState: StateFlow<HangarUiState> = combine(
-        hangarRepository.getAllDivisions(),
-        _selectedDivision,
-        _itemsWithNames,
-        _searchQuery,
-        _syncError
-    ) { divisions, selected, items, query, error ->
-        val selectedDiv = selected ?: divisions.firstOrNull { it.isMain } ?: divisions.firstOrNull()
-        val filtered = if (query.isBlank()) items
-        else items.filter { it.typeName.contains(query, ignoreCase = true) }
-
-        HangarUiState(
-            divisions = UiState.Success(divisions),
-            selectedDivision = selectedDiv,
-            items = UiState.Success(filtered),
-            searchQuery = query,
-            syncError = error
-        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HangarUiState())
 
     init {
+        // 持续监听 divisions 变化，自动选择默认 division
         viewModelScope.launch {
-            hangarRepository.getAllDivisions().first().let { divisions ->
-                if (_selectedDivision.value == null) {
-                    _selectedDivision.value = divisions.firstOrNull { it.isMain } ?: divisions.firstOrNull()
+            hangarRepository.getAllDivisions().collect { divisions ->
+                if (_selectedDivision.value == null || divisions.none { it.divisionId == _selectedDivision.value?.divisionId }) {
+                    _selectedDivision.value = divisions.firstOrNull { it.isMain }
+                        ?: divisions.firstOrNull()
                 }
             }
         }

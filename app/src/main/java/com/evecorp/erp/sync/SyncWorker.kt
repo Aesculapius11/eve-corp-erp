@@ -56,9 +56,12 @@ class SyncWorker @AssistedInject constructor(
                 val lastHangarSync = prefs.getLong(KEY_LAST_HANGAR_SYNC, 0L)
                 val now = System.currentTimeMillis()
                 if (now - lastHangarSync > 3600_000L) {
-                    runCatching { hangarRepository.syncDivisions(corpId) }
-                    runCatching { hangarRepository.syncAssets(corpId) }
-                    prefs.edit().putLong(KEY_LAST_HANGAR_SYNC, now).apply()
+                    val divResult = runCatching { hangarRepository.syncDivisions(corpId) }
+                    val assetResult = runCatching { hangarRepository.syncAssets(corpId) }
+                    // 只在同步成功时更新时间戳，失败时下次仍会重试
+                    if (divResult.isSuccess && assetResult.isSuccess) {
+                        prefs.edit().putLong(KEY_LAST_HANGAR_SYNC, now).apply()
+                    }
                 }
             }
 
