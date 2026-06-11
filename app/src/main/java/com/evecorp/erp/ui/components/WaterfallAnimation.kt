@@ -19,25 +19,25 @@ fun WaterfallItem(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val animDelay = (index * 60).coerceAtMost(600)
+    val animDelay = (index * 30).coerceAtMost(300)
 
     val alpha = remember { Animatable(0f) }
-    val offsetY = remember { Animatable(40f) }
-    val scale = remember { Animatable(0.95f) }
+    val offsetY = remember { Animatable(20f) }
+    val scale = remember { Animatable(0.97f) }
 
     LaunchedEffect(trigger) {
         alpha.snapTo(0f)
-        offsetY.snapTo(40f)
-        scale.snapTo(0.95f)
+        offsetY.snapTo(20f)
+        scale.snapTo(0.97f)
         delay(animDelay.toLong())
         launch {
-            alpha.animateTo(1f, tween(400, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
+            alpha.animateTo(1f, tween(200, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
         }
         launch {
-            offsetY.animateTo(0f, tween(450, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
+            offsetY.animateTo(0f, tween(250, easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)))
         }
         launch {
-            scale.animateTo(1f, tween(400, easing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)))
+            scale.animateTo(1f, tween(200, easing = CubicBezierEasing(0.34f, 1.2f, 0.64f, 1f)))
         }
     }
 
