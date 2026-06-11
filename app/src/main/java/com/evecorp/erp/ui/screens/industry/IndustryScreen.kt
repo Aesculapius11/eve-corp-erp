@@ -18,7 +18,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
 import com.evecorp.erp.ui.components.WaterfallItem
-import com.evecorp.erp.ui.components.rememberWaterfallState
+import com.evecorp.erp.ui.components.rememberWaterfallTrigger
+import com.evecorp.erp.ui.components.triggerWaterfall
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -30,12 +31,11 @@ fun IndustryScreen(
     viewModel: IndustryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val waterfallVisible = rememberWaterfallState()
-    val scope = rememberCoroutineScope()
+    val waterfallTrigger = rememberWaterfallTrigger()
 
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(100)
-        waterfallVisible.value = true
+        delay(100)
+        waterfallTrigger.triggerWaterfall()
     }
 
     Scaffold(
@@ -52,12 +52,8 @@ fun IndustryScreen(
                 actions = {
                     FilledIconButton(
                         onClick = {
-                            waterfallVisible.value = false
                             viewModel.refresh()
-                            scope.launch {
-                                delay(100)
-                                waterfallVisible.value = true
-                            }
+                            waterfallTrigger.triggerWaterfall()
                         },
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -131,7 +127,7 @@ fun IndustryScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             itemsIndexed(jobs.data) { index, jobWith ->
-                                WaterfallItem(index, waterfallVisible.value) {
+                                WaterfallItem(index, waterfallTrigger.value) {
                                     IndustryJobCard(jobWith)
                                 }
                             }

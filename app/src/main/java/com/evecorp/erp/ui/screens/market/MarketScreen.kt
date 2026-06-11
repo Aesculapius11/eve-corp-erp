@@ -19,7 +19,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
 import com.evecorp.erp.ui.components.WaterfallItem
-import com.evecorp.erp.ui.components.rememberWaterfallState
+import com.evecorp.erp.ui.components.rememberWaterfallTrigger
+import com.evecorp.erp.ui.components.triggerWaterfall
 import com.evecorp.erp.ui.formatIsk
 import com.evecorp.erp.ui.formatNumber
 import kotlinx.coroutines.delay
@@ -31,12 +32,11 @@ fun MarketScreen(
     viewModel: MarketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val waterfallVisible = rememberWaterfallState()
-    val scope = rememberCoroutineScope()
+    val waterfallTrigger = rememberWaterfallTrigger()
 
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(100)
-        waterfallVisible.value = true
+        delay(100)
+        waterfallTrigger.triggerWaterfall()
     }
 
     Scaffold(
@@ -53,12 +53,8 @@ fun MarketScreen(
                 actions = {
                     FilledIconButton(
                         onClick = {
-                            waterfallVisible.value = false
                             viewModel.refresh()
-                            scope.launch {
-                                delay(100)
-                                waterfallVisible.value = true
-                            }
+                            waterfallTrigger.triggerWaterfall()
                         },
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -141,7 +137,7 @@ fun MarketScreen(
                         ) {
                             // 价格总和卡片
                             item {
-                                WaterfallItem(0, waterfallVisible.value) {
+                                WaterfallItem(0, waterfallTrigger.value) {
                                     Card(
                                         shape = RoundedCornerShape(16.dp),
                                         colors = CardDefaults.cardColors(
@@ -177,7 +173,7 @@ fun MarketScreen(
                             }
 
                             itemsIndexed(orders.data) { index, orderWith ->
-                                WaterfallItem(index + 1, waterfallVisible.value) {
+                                WaterfallItem(index + 1, waterfallTrigger.value) {
                                     MarketOrderCard(orderWith)
                                 }
                             }
