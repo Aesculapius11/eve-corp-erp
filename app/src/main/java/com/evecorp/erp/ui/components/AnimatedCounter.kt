@@ -22,23 +22,16 @@ fun AnimatedCounter(
     color: Color = Color.Unspecified
 ) {
     val animatable = remember { Animatable(0f) }
-    var isFirstLoad by remember { mutableStateOf(true) }
 
     LaunchedEffect(targetValue) {
-        if (isFirstLoad) {
-            // 首次加载：直接跳到目标值，不播放动画
-            animatable.snapTo(targetValue.toFloat())
-            isFirstLoad = false
-        } else {
-            // 后续更新：从当前值动画到新值
-            animatable.animateTo(
-                targetValue = targetValue.toFloat(),
-                animationSpec = tween(
-                    durationMillis = 800,
-                    easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
-                )
+        // 每次金额变化都播放动画（包括首次从0开始）
+        animatable.animateTo(
+            targetValue = targetValue.toFloat(),
+            animationSpec = tween(
+                durationMillis = 800,
+                easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
             )
-        }
+        )
     }
 
     val df = remember { DecimalFormat("#,##0.00") }
