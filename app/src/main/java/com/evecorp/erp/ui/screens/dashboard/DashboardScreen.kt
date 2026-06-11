@@ -25,9 +25,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
+import com.evecorp.erp.ui.components.WaterfallItem
+import com.evecorp.erp.ui.components.rememberWaterfallState
 import com.evecorp.erp.ui.formatIsk
 import com.evecorp.erp.ui.formatTimeAgo
 import com.evecorp.erp.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +39,14 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val waterfallVisible = rememberWaterfallState()
+    val scope = rememberCoroutineScope()
+
+    // 首次加载触发瀑布动画
+    LaunchedEffect(Unit) {
+        delay(100)
+        waterfallVisible.value = true
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -49,7 +61,14 @@ fun DashboardScreen(
                 },
                 actions = {
                     FilledIconButton(
-                        onClick = { viewModel.refresh() },
+                        onClick = {
+                            waterfallVisible.value = false
+                            viewModel.refresh()
+                            scope.launch {
+                                delay(100)
+                                waterfallVisible.value = true
+                            }
+                        },
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -72,29 +91,33 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // ── 钱包余额卡片（渐变背景） ──
-            item { BalanceHeroCard(uiState.balance) }
+            item { WaterfallItem(0, waterfallVisible.value) { BalanceHeroCard(uiState.balance) } }
 
             // ── 30 天资产变化 ──
             item {
-                SectionHeader(
-                    icon = Icons.Outlined.ShowChart,
-                    title = "30 天资产变化"
-                )
+                WaterfallItem(1, waterfallVisible.value) {
+                    SectionHeader(
+                        icon = Icons.Outlined.ShowChart,
+                        title = "30 天资产变化"
+                    )
+                }
             }
-            item { BalanceHistoryCard(uiState.balanceHistory) }
+            item { WaterfallItem(2, waterfallVisible.value) { BalanceHistoryCard(uiState.balanceHistory) } }
 
             // ── 成本指数（可切换星系） ──
             item {
-                CostIndexHeader(
-                    systemName = uiState.selectedSystemName,
-                    searchResults = uiState.systemSearchResults,
-                    isSearching = uiState.isSearchingSystem,
-                    onSearch = { viewModel.searchSystem(it) },
-                    onSelectSystem = { id, name -> viewModel.selectSystem(id, name) },
-                    onClearSearch = { viewModel.clearSearchResults() }
-                )
+                WaterfallItem(3, waterfallVisible.value) {
+                    CostIndexHeader(
+                        systemName = uiState.selectedSystemName,
+                        searchResults = uiState.systemSearchResults,
+                        isSearching = uiState.isSearchingSystem,
+                        onSearch = { viewModel.searchSystem(it) },
+                        onSelectSystem = { id, name -> viewModel.selectSystem(id, name) },
+                        onClearSearch = { viewModel.clearSearchResults() }
+                    )
+                }
             }
-            item { CostIndexCard(uiState.costIndex) }
+            item { WaterfallItem(4, waterfallVisible.value) { CostIndexCard(uiState.costIndex) } }
 
             item { Spacer(Modifier.height(8.dp)) }
         }

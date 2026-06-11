@@ -2,7 +2,7 @@ package com.evecorp.erp.ui.screens.industry
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -17,6 +17,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
+import com.evecorp.erp.ui.components.WaterfallItem
+import com.evecorp.erp.ui.components.rememberWaterfallState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,6 +30,13 @@ fun IndustryScreen(
     viewModel: IndustryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val waterfallVisible = rememberWaterfallState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        waterfallVisible.value = true
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -40,7 +51,14 @@ fun IndustryScreen(
                 },
                 actions = {
                     FilledIconButton(
-                        onClick = { viewModel.refresh() },
+                        onClick = {
+                            waterfallVisible.value = false
+                            viewModel.refresh()
+                            scope.launch {
+                                delay(100)
+                                waterfallVisible.value = true
+                            }
+                        },
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -112,8 +130,10 @@ fun IndustryScreen(
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(jobs.data, key = { it.job.jobId }) { jobWith ->
-                                IndustryJobCard(jobWith)
+                            itemsIndexed(jobs.data) { index, jobWith ->
+                                WaterfallItem(index, waterfallVisible.value) {
+                                    IndustryJobCard(jobWith)
+                                }
                             }
                             item { Spacer(Modifier.height(8.dp)) }
                         }

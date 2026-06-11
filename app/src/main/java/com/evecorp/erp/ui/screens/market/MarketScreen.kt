@@ -2,7 +2,7 @@ package com.evecorp.erp.ui.screens.market
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -18,8 +18,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
+import com.evecorp.erp.ui.components.WaterfallItem
+import com.evecorp.erp.ui.components.rememberWaterfallState
 import com.evecorp.erp.ui.formatIsk
 import com.evecorp.erp.ui.formatNumber
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,6 +31,13 @@ fun MarketScreen(
     viewModel: MarketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val waterfallVisible = rememberWaterfallState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        waterfallVisible.value = true
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -41,7 +52,14 @@ fun MarketScreen(
                 },
                 actions = {
                     FilledIconButton(
-                        onClick = { viewModel.refresh() },
+                        onClick = {
+                            waterfallVisible.value = false
+                            viewModel.refresh()
+                            scope.launch {
+                                delay(100)
+                                waterfallVisible.value = true
+                            }
+                        },
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -123,41 +141,45 @@ fun MarketScreen(
                         ) {
                             // 价格总和卡片
                             item {
-                                Card(
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                    )
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Receipt,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                WaterfallItem(0, waterfallVisible.value) {
+                                    Card(
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.secondaryContainer
                                         )
-                                        Column {
-                                            Text(
-                                                "总价值",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Receipt,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
-                                            Text(
-                                                formatIsk(totalValue),
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
+                                            Column {
+                                                Text(
+                                                    "总价值",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                                )
+                                                Text(
+                                                    formatIsk(totalValue),
+                                                    style = MaterialTheme.typography.titleLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
 
-                            items(orders.data, key = { it.order.orderId }) { orderWith ->
-                                MarketOrderCard(orderWith)
+                            itemsIndexed(orders.data) { index, orderWith ->
+                                WaterfallItem(index + 1, waterfallVisible.value) {
+                                    MarketOrderCard(orderWith)
+                                }
                             }
                             item { Spacer(Modifier.height(8.dp)) }
                         }
