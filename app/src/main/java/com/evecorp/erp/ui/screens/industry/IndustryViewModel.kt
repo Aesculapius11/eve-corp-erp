@@ -42,12 +42,21 @@ class IndustryViewModel @Inject constructor(
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(IndustryTab.ALL)
     private val _syncError = MutableStateFlow<String?>(null)
+    private val _hasSynced = MutableStateFlow(false)
 
     val uiState: StateFlow<IndustryUiState> = combine(
         _selectedTab,
         industryRepository.getActiveJobs(corpId),
-        _syncError
-    ) { tab, allJobs, error ->
+        _syncError,
+        _hasSynced
+    ) { tab, allJobs, error, hasSynced ->
+        if (!hasSynced) {
+            return@combine IndustryUiState(
+                jobs = UiState.Loading,
+                selectedTab = tab,
+                syncError = error
+            )
+        }
         // 解析物品名称
         val withNames = allJobs.map { job ->
             IndustryJobWith(
@@ -77,6 +86,7 @@ class IndustryViewModel @Inject constructor(
         viewModelScope.launch {
             _syncError.value = null
             val result = industryRepository.syncJobs(corpId)
+            _hasSynced.value = true
             result.onFailure { e ->
                 _syncError.value = e.message ?: "同步失败"
             }

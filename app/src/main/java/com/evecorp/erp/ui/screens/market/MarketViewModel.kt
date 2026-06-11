@@ -39,12 +39,22 @@ class MarketViewModel @Inject constructor(
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(MarketTab.SELL)
     private val _syncError = MutableStateFlow<String?>(null)
+    private val _hasSynced = MutableStateFlow(false)
 
     val uiState: StateFlow<MarketUiState> = combine(
         _selectedTab,
         marketRepository.getAllActiveOrders(),
-        _syncError
-    ) { tab, allOrders, error ->
+        _syncError,
+        _hasSynced
+    ) { tab, allOrders, error, hasSynced ->
+        if (!hasSynced) {
+            return@combine MarketUiState(
+                sellOrders = UiState.Loading,
+                buyOrders = UiState.Loading,
+                selectedTab = tab,
+                syncError = error
+            )
+        }
         val withNames = allOrders.map { order ->
             MarketOrderWith(
                 order = order,
@@ -80,6 +90,7 @@ class MarketViewModel @Inject constructor(
             // 解析物品名
             val allOrders = marketRepository.getAllActiveOrders().first()
             marketRepository.syncTypeNames(allOrders)
+            _hasSynced.value = true
         }
     }
 }

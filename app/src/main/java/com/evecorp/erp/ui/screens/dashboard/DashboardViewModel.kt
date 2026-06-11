@@ -89,6 +89,7 @@ class DashboardViewModel @Inject constructor(
     private val _selectedSystemName = MutableStateFlow(dashboardPreferences.getCostIndexSystemName())
     private val _systemSearchResults = MutableStateFlow<List<SystemSearchResult>>(emptyList())
     private val _isSearchingSystem = MutableStateFlow(false)
+    private val _hasSynced = MutableStateFlow(false)
 
     // 财务数据流（balance + journal + history + costIndex）
     private val financialData: StateFlow<DashboardUiState> = combine(
@@ -97,13 +98,14 @@ class DashboardViewModel @Inject constructor(
         walletRepository.getBalanceHistory(corpId).map { UiState.Success(it) },
         _selectedSystemId.flatMapLatest { systemId ->
             industryRepository.getCostIndex(systemId).map { it?.let { UiState.Success(it) } ?: UiState.Loading }
-        }
-    ) { balance, journal, history, costIndex ->
+        },
+        _hasSynced
+    ) { balance, journal, history, costIndex, hasSynced ->
         DashboardUiState(
             balance = balance,
-            journal = journal,
+            journal = if (hasSynced) journal else UiState.Loading,
             costIndex = costIndex,
-            balanceHistory = history
+            balanceHistory = if (hasSynced) history else UiState.Loading
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
@@ -178,6 +180,7 @@ class DashboardViewModel @Inject constructor(
             walletRepository.syncJournal(corpId)
             walletRepository.reconstructHistoryFromJournal(corpId)
             industryRepository.syncCostIndices(listOf(_selectedSystemId.value))
+            _hasSynced.value = true
             _isRefreshing.value = false
         }
     }
