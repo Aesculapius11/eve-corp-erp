@@ -25,10 +25,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.R
 import com.evecorp.erp.ui.UiState
+import com.evecorp.erp.ui.components.AnimatedCounter
 import com.evecorp.erp.ui.components.WaterfallItem
 import com.evecorp.erp.ui.components.rememberWaterfallTrigger
 import com.evecorp.erp.ui.components.triggerWaterfall
-import com.evecorp.erp.ui.formatIskFull
 import com.evecorp.erp.ui.formatTimeAgo
 import com.evecorp.erp.ui.theme.*
 import kotlinx.coroutines.delay
@@ -356,8 +356,8 @@ private fun BalanceHeroCard(state: UiState<com.evecorp.erp.data.local.entity.Wal
                         )
                     }
                     is UiState.Success -> {
-                        Text(
-                            text = formatIskFull(state.data.balance),
+                        AnimatedCounter(
+                            targetValue = state.data.balance,
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
