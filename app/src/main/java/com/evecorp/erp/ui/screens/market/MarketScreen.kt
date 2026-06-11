@@ -1,5 +1,6 @@
 package com.evecorp.erp.ui.screens.market
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -267,16 +268,22 @@ private fun MarketOrderCard(orderWith: MarketOrderWith) {
 
             Spacer(Modifier.height(8.dp))
 
-            // ── 进度条 ──
-            LinearProgressIndicator(
-                progress = { volumePercent },
+            // ── 进度条（底色 + 进度色重叠） ──
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                color = MaterialTheme.colorScheme.primary
-            )
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(fraction = volumePercent.coerceIn(0f, 1f))
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
 

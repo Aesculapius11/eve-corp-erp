@@ -24,11 +24,13 @@ fun AnimatedCounter(
     val animatable = remember { Animatable(0f) }
 
     LaunchedEffect(targetValue) {
-        // 每次金额变化都播放动画（包括首次从0开始）
+        val currentValue = animatable.value
+        // 从0开始时拉长动画时间，让数字滚动更明显
+        val duration = if (currentValue < 1f) 1500 else 800
         animatable.animateTo(
             targetValue = targetValue.toFloat(),
             animationSpec = tween(
-                durationMillis = 800,
+                durationMillis = duration,
                 easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
             )
         )
