@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -20,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import com.evecorp.erp.auth.AuthStateManager
 import com.evecorp.erp.auth.EsiAuthManager
 import com.evecorp.erp.auth.TokenManager
+import com.evecorp.erp.sync.KeepAliveService
 import com.evecorp.erp.ui.navigation.Screen
 import com.evecorp.erp.ui.screens.dashboard.DashboardScreen
 import com.evecorp.erp.ui.screens.industry.IndustryScreen
@@ -36,6 +38,7 @@ fun EveCorpApp(
     themeManager: ThemeManager,
     authStateManager: AuthStateManager
 ) {
+    val context = LocalContext.current
     val navController = rememberNavController()
     val isLoggedIn = tokenManager.isLoggedIn()
     val screens = Screen.entries.filter { it.showInNavBar }
@@ -134,6 +137,7 @@ fun EveCorpApp(
             composable(Screen.SETTINGS.route) {
                 SettingsScreen(
                     onLogout = {
+                        KeepAliveService.stop(context)
                         navController.navigate(Screen.LOGIN.route) {
                             popUpTo(0) { inclusive = true }
                         }

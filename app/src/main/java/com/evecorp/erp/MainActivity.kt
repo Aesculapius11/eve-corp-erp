@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import com.evecorp.erp.auth.AuthStateManager
 import com.evecorp.erp.auth.EsiAuthManager
 import com.evecorp.erp.auth.TokenManager
+import com.evecorp.erp.sync.KeepAliveService
 import com.evecorp.erp.ui.EveCorpApp
 import com.evecorp.erp.ui.theme.EveCorpTheme
 import com.evecorp.erp.ui.theme.ThemeManager
@@ -26,6 +27,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // 启动前台保活服务
+        if (tokenManager.isLoggedIn()) {
+            KeepAliveService.start(this)
+        }
+
         setContent {
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = null)
             EveCorpTheme(darkTheme = isDarkMode) {
