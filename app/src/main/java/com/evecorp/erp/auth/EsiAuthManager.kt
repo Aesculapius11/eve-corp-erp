@@ -19,7 +19,7 @@ import javax.inject.Singleton
 class EsiAuthManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tokenManager: TokenManager,
-    private val okHttpClient: OkHttpClient
+    @javax.inject.Named("plain") private val okHttpClient: OkHttpClient
 ) {
     companion object {
         private const val TAG = "EsiAuth"
