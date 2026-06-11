@@ -39,7 +39,7 @@ fun AnimatedCounter(
             targetValue = targetValue.toFloat(),
             animationSpec = tween(
                 durationMillis = duration,
-                easing = FastOutSlowInEasing
+                easing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
             )
         )
     }
