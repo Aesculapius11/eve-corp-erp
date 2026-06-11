@@ -13,6 +13,7 @@ import com.evecorp.erp.Constants
 import com.evecorp.erp.MainActivity
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.auth.TokenRefresher
+import com.evecorp.erp.data.local.DashboardPreferences
 import com.evecorp.erp.data.local.dao.IndustryJobDao
 import com.evecorp.erp.data.local.dao.MarketOrderDao
 import com.evecorp.erp.data.local.dao.TypeNameCacheDao
@@ -44,6 +45,7 @@ class KeepAliveService : Service() {
     @Inject lateinit var marketOrderDao: MarketOrderDao
     @Inject lateinit var typeNameCacheDao: TypeNameCacheDao
     @Inject lateinit var notificationHelper: NotificationHelper
+    @Inject lateinit var dashboardPreferences: DashboardPreferences
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var tokenRefreshJob: Job? = null
@@ -97,7 +99,7 @@ class KeepAliveService : Service() {
     }
 
     /**
-     * 每 5 分钟检查工业/市场变化
+     * 每 N 分钟检查工业/市场变化（用户可配置）
      */
     private fun startAlertCheckLoop() {
         alertCheckJob?.cancel()
@@ -112,13 +114,13 @@ class KeepAliveService : Service() {
                 } catch (e: Exception) {
                     Log.w(TAG, "Alert check failed", e)
                 }
-                delay(ALERT_CHECK_INTERVAL)
+                delay(dashboardPreferences.getAlertIntervalMinutes() * 60_000L)
             }
         }
     }
 
     /**
-     * 每 15 分钟同步数据
+     * 每 N 分钟同步数据（用户可配置）
      */
     private fun startDataSyncLoop() {
         dataSyncJob?.cancel()
@@ -138,7 +140,7 @@ class KeepAliveService : Service() {
                 } catch (e: Exception) {
                     Log.w(TAG, "Background data sync failed", e)
                 }
-                delay(DATA_SYNC_INTERVAL)
+                delay(dashboardPreferences.getSyncIntervalMinutes() * 60_000L)
             }
         }
     }
@@ -159,8 +161,9 @@ class KeepAliveService : Service() {
 
             for ((threshold, label) in NotificationHelper.ALERT_THRESHOLDS) {
                 val alertKey = "industry_${job.jobId}_$threshold"
+                val checkInterval = dashboardPreferences.getAlertIntervalMinutes() * 60_000L
 
-                if (timeLeft in (threshold - ALERT_CHECK_INTERVAL)..threshold) {
+                if (timeLeft in (threshold - checkInterval)..threshold) {
                     if (!prefs.getBoolean(alertKey, false)) {
                         val title = if (threshold == 0L) "工业作业完成" else "工业作业即将完成"
                         val message = "$productName — ${AppUtils.getActivityLabel(job.activityType)} — 还剩$label"
@@ -268,8 +271,6 @@ class KeepAliveService : Service() {
         private const val NOTIFICATION_ID = 99999
 
         private const val TOKEN_REFRESH_INTERVAL = 10 * 60 * 1000L  // 10 分钟
-        private const val ALERT_CHECK_INTERVAL = 5 * 60 * 1000L     // 5 分钟
-        private const val DATA_SYNC_INTERVAL = 15 * 60 * 1000L      // 15 分钟
 
         private const val KEY_MARKET_HASH = "market_orders_hash"
         private const val KEY_MARKET_ORDER_IDS = "market_order_ids"

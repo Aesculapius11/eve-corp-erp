@@ -33,5 +33,29 @@ class DashboardPreferences @Inject constructor(
     companion object {
         private const val KEY_COST_INDEX_SYSTEM_ID = "cost_index_system_id"
         private const val KEY_COST_INDEX_SYSTEM_NAME = "cost_index_system_name"
+        private const val KEY_SYNC_INTERVAL = "sync_interval_minutes"
+        private const val KEY_ALERT_INTERVAL = "alert_interval_minutes"
+
+        const val DEFAULT_SYNC_INTERVAL = 15    // 分钟
+        const val DEFAULT_ALERT_INTERVAL = 5    // 分钟
+        const val MIN_INTERVAL = 5              // 最小间隔
+    }
+
+    fun getSyncIntervalMinutes(): Int {
+        val value = prefs.getInt(KEY_SYNC_INTERVAL, DEFAULT_SYNC_INTERVAL)
+        return value.coerceAtLeast(MIN_INTERVAL)
+    }
+
+    fun setSyncIntervalMinutes(minutes: Int) {
+        prefs.edit().putInt(KEY_SYNC_INTERVAL, minutes.coerceAtLeast(MIN_INTERVAL)).apply()
+    }
+
+    fun getAlertIntervalMinutes(): Int {
+        val value = prefs.getInt(KEY_ALERT_INTERVAL, DEFAULT_ALERT_INTERVAL)
+        return value.coerceAtLeast(MIN_INTERVAL)
+    }
+
+    fun setAlertIntervalMinutes(minutes: Int) {
+        prefs.edit().putInt(KEY_ALERT_INTERVAL, minutes.coerceAtLeast(MIN_INTERVAL)).apply()
     }
 }
