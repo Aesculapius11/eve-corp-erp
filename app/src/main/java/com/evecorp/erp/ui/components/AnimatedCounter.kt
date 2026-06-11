@@ -33,8 +33,8 @@ fun AnimatedCounter(
         val current = animatable.value
         // 从当前值动画到目标值，变化幅度大时长更长
         val diff = kotlin.math.abs(targetValue.toFloat() - current)
-        val duration = if (current < 1f) 1200 else (300 + (diff / targetValue.toFloat().coerceAtLeast(1f)) * 600)
-            .toInt().coerceIn(300, 1200)
+        val duration = if (current < 1f) 2000 else (500 + (diff / targetValue.toFloat().coerceAtLeast(1f)) * 1000)
+            .toInt().coerceIn(500, 2500)
         animatable.animateTo(
             targetValue = targetValue.toFloat(),
             animationSpec = tween(
