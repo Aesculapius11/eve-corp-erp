@@ -71,7 +71,7 @@ class EsiAuthInterceptor @Inject constructor(
     }
 
     private fun buildExpiredResponse(original: Request): Response {
-        authStateManager.notifyTokenExpired()
+        Log.w(TAG, "Token expired for ${original.url}, user needs to re-login")
         return Response.Builder()
             .request(original)
             .protocol(Protocol.HTTP_1_1)

@@ -1,10 +1,12 @@
 package com.evecorp.erp.sync
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.evecorp.erp.Constants
 import com.evecorp.erp.auth.TokenManager
+import com.evecorp.erp.auth.TokenRefresher
 import com.evecorp.erp.data.local.dao.TypeNameCacheDao
 import com.evecorp.erp.data.repository.*
 import dagger.assisted.Assisted
@@ -19,6 +21,7 @@ class SyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val tokenManager: TokenManager,
+    private val tokenRefresher: TokenRefresher,
     private val walletRepository: WalletRepository,
     private val industryRepository: IndustryRepository,
     private val marketRepository: MarketRepository,
@@ -29,6 +32,14 @@ class SyncWorker @AssistedInject constructor(
         if (!tokenManager.isLoggedIn()) return Result.failure()
 
         val corpId = tokenManager.corporationId
+
+        // 主动刷新 token，保持 refresh token 存活（ESI refresh token 约 4 小时过期）
+        try {
+            tokenRefresher.refreshBlocking()
+            Log.d(TAG, "Token proactive refresh completed")
+        } catch (e: Exception) {
+            Log.w(TAG, "Token proactive refresh failed", e)
+        }
 
         // 一次性清理旧的英文物品名缓存，强制重新拉取中文名
         val syncPrefs = applicationContext.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
@@ -58,6 +69,7 @@ class SyncWorker @AssistedInject constructor(
     }
 
     companion object {
+        private const val TAG = "SyncWorker"
         const val WORK_NAME = "eve_corp_sync"
         const val KEY_CACHE_CLEARED_V2 = "cache_cleared_v2_zh"
 
