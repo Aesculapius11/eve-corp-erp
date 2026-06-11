@@ -28,31 +28,20 @@ fun AnimatedCounter(
     color: Color = Color.Unspecified
 ) {
     val animatable = remember { Animatable(0f) }
-    var previousValue by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(targetValue) {
-        val prev = previousValue
-        if (prev == null) {
-            // 首次加载：直接跳到目标值
-            previousValue = targetValue
-            animatable.snapTo(targetValue.toFloat())
-        } else if (kotlin.math.abs(targetValue - prev) > 0.01) {
-            // 值真正变化了：播放动画
-            previousValue = targetValue
-            val startValue = animatable.value * 0.95f
-            animatable.snapTo(startValue)
-            val diff = kotlin.math.abs(targetValue.toFloat() - startValue)
-            val duration = (300 + (diff / targetValue.toFloat().coerceAtLeast(1f)) * 600)
-                .toInt().coerceIn(300, 900)
-            animatable.animateTo(
-                targetValue = targetValue.toFloat(),
-                animationSpec = tween(
-                    durationMillis = duration,
-                    easing = FastOutSlowInEasing
-                )
+        val current = animatable.value
+        // 从当前值动画到目标值，变化幅度大时长更长
+        val diff = kotlin.math.abs(targetValue.toFloat() - current)
+        val duration = if (current < 1f) 1200 else (300 + (diff / targetValue.toFloat().coerceAtLeast(1f)) * 600)
+            .toInt().coerceIn(300, 1200)
+        animatable.animateTo(
+            targetValue = targetValue.toFloat(),
+            animationSpec = tween(
+                durationMillis = duration,
+                easing = FastOutSlowInEasing
             )
-        }
-        // 值没变：什么都不做
+        )
     }
 
     val df = remember { DecimalFormat("#,##0.00") }
