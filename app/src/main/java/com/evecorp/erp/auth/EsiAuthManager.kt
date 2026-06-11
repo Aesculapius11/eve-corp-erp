@@ -26,6 +26,8 @@ class EsiAuthManager @Inject constructor(
         private const val ESI_AUTH_URL = "https://login.eveonline.com/v2/oauth/authorize"
         private const val ESI_TOKEN_URL = "https://login.eveonline.com/v2/oauth/token"
         private const val ESI_VERIFY_URL = "https://login.eveonline.com/oauth/verify"
+        private const val PREFS_NAME = "esi_auth_state"
+        private const val KEY_STATE = "oauth_state"
         private val SCOPES = listOf(
             // 角色
             "esi-characters.read_corporation_roles.v1",
@@ -64,16 +66,17 @@ class EsiAuthManager @Inject constructor(
         )
     }
 
-    private var currentState: String = ""
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getAuthorizationUrl(): Uri {
-        currentState = java.util.UUID.randomUUID().toString()
+        val state = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_STATE, state).apply()
         return Uri.parse(ESI_AUTH_URL).buildUpon()
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("redirect_uri", BuildConfig.ESI_CALLBACK_URL)
             .appendQueryParameter("client_id", BuildConfig.ESI_CLIENT_ID)
             .appendQueryParameter("scope", SCOPES.joinToString(" "))
-            .appendQueryParameter("state", currentState)
+            .appendQueryParameter("state", state)
             .build()
     }
 
@@ -129,10 +132,13 @@ class EsiAuthManager @Inject constructor(
     }
 
     suspend fun handleCallback(code: String, state: String): Boolean {
-        if (state != currentState) {
-            Log.w(TAG, "State mismatch: expected=$currentState, got=$state")
+        val savedState = prefs.getString(KEY_STATE, null)
+        if (state != savedState) {
+            Log.w(TAG, "State mismatch: expected=$savedState, got=$state")
             return false
         }
+        // 清除已使用的 state
+        prefs.edit().remove(KEY_STATE).apply()
 
         return withContext(Dispatchers.IO) {
             try {
