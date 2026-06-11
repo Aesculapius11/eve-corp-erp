@@ -1,5 +1,10 @@
 package com.evecorp.erp.ui.screens.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,8 +19,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.evecorp.erp.ui.theme.*
@@ -31,6 +38,23 @@ fun SettingsScreen(
     val isDarkMode by themeManager.isDarkMode.collectAsState(initial = null)
     val followSystem by themeManager.followSystem.collectAsState(initial = true)
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // 通知权限状态
+    val context = LocalContext.current
+    var hasNotificationPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            } else true
+        )
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasNotificationPermission = isGranted
+    }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -208,6 +232,85 @@ fun SettingsScreen(
                             checked = isDarkMode == true,
                             onCheckedChange = { themeManager.setDarkMode(it) }
                         )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // ── 通知设置 ──
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            Text(
+                text = "通知",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (hasNotificationPermission) "通知已开启" else "通知未开启",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        if (hasNotificationPermission) "工业作业和市场订单变化会推送提醒"
+                        else "开启后可接收工业作业和市场订单提醒",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                if (hasNotificationPermission) {
+                    FilledTonalButton(
+                        onClick = { },
+                        enabled = false,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("已开启")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("开启通知")
                     }
                 }
             }
