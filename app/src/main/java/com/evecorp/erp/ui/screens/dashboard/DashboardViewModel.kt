@@ -98,15 +98,28 @@ class DashboardViewModel @Inject constructor(
         walletRepository.getBalanceHistory(corpId).map { UiState.Success(it) },
         _selectedSystemId.flatMapLatest { systemId ->
             industryRepository.getCostIndex(systemId).map { it?.let { UiState.Success(it) } ?: UiState.Loading }
-        },
-        _hasSynced
-    ) { balance, journal, history, costIndex, hasSynced ->
+        }
+    ) { balance, journal, history, costIndex ->
         DashboardUiState(
             balance = balance,
-            journal = if (hasSynced) journal else UiState.Loading,
+            journal = journal,
             costIndex = costIndex,
-            balanceHistory = if (hasSynced) history else UiState.Loading
+            balanceHistory = history
         )
+    }.combine(_hasSynced) { state, hasSynced ->
+        if (hasSynced) state
+        else state.copy(
+            journal = UiState.Loading,
+            balanceHistory = UiState.Loading
+        )
+    }.combine(_isRefreshing) { state, isRefreshing ->
+        if (isRefreshing) state.copy(
+            balance = UiState.Loading,
+            journal = UiState.Loading,
+            costIndex = UiState.Loading,
+            balanceHistory = UiState.Loading
+        )
+        else state
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
     val uiState: StateFlow<DashboardUiState> = combine(

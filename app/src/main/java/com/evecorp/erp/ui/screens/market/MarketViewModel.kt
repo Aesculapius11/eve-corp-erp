@@ -40,18 +40,21 @@ class MarketViewModel @Inject constructor(
     private val _selectedTab = MutableStateFlow(MarketTab.SELL)
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
+    private val _isRefreshing = MutableStateFlow(false)
 
     val uiState: StateFlow<MarketUiState> = combine(
         _selectedTab,
         marketRepository.getAllActiveOrders(),
         _syncError,
-        _hasSynced
-    ) { tab, allOrders, error, hasSynced ->
-        if (!hasSynced) {
+        _hasSynced,
+        _isRefreshing
+    ) { tab, allOrders, error, hasSynced, isRefreshing ->
+        if (!hasSynced || isRefreshing) {
             return@combine MarketUiState(
                 sellOrders = UiState.Loading,
                 buyOrders = UiState.Loading,
                 selectedTab = tab,
+                isRefreshing = isRefreshing,
                 syncError = error
             )
         }
@@ -81,6 +84,7 @@ class MarketViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _syncError.value = null
+            _isRefreshing.value = true
             marketRepository.syncOrders(corpId).onFailure { e ->
                 _syncError.value = "公司订单: ${e.message}"
             }
@@ -90,6 +94,7 @@ class MarketViewModel @Inject constructor(
             // 解析物品名
             val allOrders = marketRepository.getAllActiveOrders().first()
             marketRepository.syncTypeNames(allOrders)
+            _isRefreshing.value = false
             _hasSynced.value = true
         }
     }

@@ -43,17 +43,20 @@ class IndustryViewModel @Inject constructor(
     private val _selectedTab = MutableStateFlow(IndustryTab.ALL)
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
+    private val _isRefreshing = MutableStateFlow(false)
 
     val uiState: StateFlow<IndustryUiState> = combine(
         _selectedTab,
         industryRepository.getActiveJobs(corpId),
         _syncError,
-        _hasSynced
-    ) { tab, allJobs, error, hasSynced ->
-        if (!hasSynced) {
+        _hasSynced,
+        _isRefreshing
+    ) { tab, allJobs, error, hasSynced, isRefreshing ->
+        if (!hasSynced || isRefreshing) {
             return@combine IndustryUiState(
                 jobs = UiState.Loading,
                 selectedTab = tab,
+                isRefreshing = isRefreshing,
                 syncError = error
             )
         }
@@ -85,7 +88,9 @@ class IndustryViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _syncError.value = null
+            _isRefreshing.value = true
             val result = industryRepository.syncJobs(corpId)
+            _isRefreshing.value = false
             _hasSynced.value = true
             result.onFailure { e ->
                 _syncError.value = e.message ?: "同步失败"
