@@ -16,8 +16,9 @@ import java.text.DecimalFormat
  * 数字增长动画组件
  * - 始终单行显示，字号自适应避免换行跳动
  * - 只在值真正变化时播放动画（避免 Room Flow 重复发射触发）
- * - 首次加载：直接显示目标值（无动画）
- * - 后续变化：从旧值的 95% 增长到新值，先快后慢
+ * - 首次加载：从 0 动画到目标值
+ * - 后续变化：从旧值动画到新值，先快后慢
+ * - 修复：滚动离开再回来不会重复播放动画
  */
 @Composable
 fun AnimatedCounter(
@@ -27,9 +28,23 @@ fun AnimatedCounter(
     fontWeight: FontWeight? = null,
     color: Color = Color.Unspecified
 ) {
-    val animatable = remember { Animatable(0f) }
+    // 使用 rememberSaveable 跟踪动画完成状态，防止滚动回收后重复播放
+    var hasAnimated by rememberSaveable { mutableStateOf(false) }
+    var lastCompletedValue by rememberSaveable { mutableStateOf(targetValue) }
+    val animatable = remember {
+        Animatable(
+            if (hasAnimated && lastCompletedValue == targetValue) targetValue.toFloat()
+            else 0f
+        )
+    }
 
     LaunchedEffect(targetValue) {
+        // 如果已经对此数值完成过动画（如滚动回来），直接跳转不播放
+        if (hasAnimated && lastCompletedValue == targetValue) {
+            animatable.snapTo(targetValue.toFloat())
+            return@LaunchedEffect
+        }
+
         val current = animatable.value
         // 从当前值动画到目标值，变化幅度大时长更长
         val diff = kotlin.math.abs(targetValue.toFloat() - current)
@@ -42,6 +57,9 @@ fun AnimatedCounter(
                 easing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
             )
         )
+        // 标记动画已完成
+        hasAnimated = true
+        lastCompletedValue = targetValue
     }
 
     val df = remember { DecimalFormat("#,##0.00") }

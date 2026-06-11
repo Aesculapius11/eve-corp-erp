@@ -20,6 +20,7 @@ import com.evecorp.erp.data.local.dao.TypeNameCacheDao
 import com.evecorp.erp.data.repository.IndustryRepository
 import com.evecorp.erp.data.repository.MarketRepository
 import com.evecorp.erp.data.repository.WalletRepository
+import com.evecorp.erp.notification.AlertCheckReceiver
 import com.evecorp.erp.notification.NotificationHelper
 import com.evecorp.erp.util.AppUtils
 import dagger.hilt.android.AndroidEntryPoint
@@ -60,6 +61,8 @@ class KeepAliveService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createPersistentNotification())
+        // 启动守护进程（双进程保活）
+        GuardService.start(this)
         Log.d(TAG, "KeepAliveService started")
     }
 
@@ -67,6 +70,9 @@ class KeepAliveService : Service() {
         startTokenRefreshLoop()
         startAlertCheckLoop()
         startDataSyncLoop()
+        // 使用 AlarmManager 作为后台保底机制（即使服务被杀死也能继续检查）
+        AlertCheckReceiver.scheduleNextCheck(this)
+        AlertCheckReceiver.scheduleNextSync(this)
         return START_STICKY // 被杀后自动重启
     }
 
@@ -84,13 +90,21 @@ class KeepAliveService : Service() {
         try {
             val intent = Intent(applicationContext, KeepAliveService::class.java)
             val pendingIntent = PendingIntent.getService(
-                applicationContext, 1, intent,
+                applicationContext, REQUEST_CODE_RESTART, intent,
                 PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
             )
             val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
-            alarmManager.set(
-                android.app.AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + 3000, // 3秒后重启
+            // 使用 setAlarmClock() — 国产 ROM（MIUI/HarmonyOS/ColorOS等）
+            // 唯一完全尊重且不会延迟的 AlarmManager 类型
+            alarmManager.setAlarmClock(
+                android.app.AlarmManager.AlarmClockInfo(
+                    System.currentTimeMillis() + 3000,
+                    PendingIntent.getActivity(
+                        applicationContext, 0,
+                        Intent(applicationContext, MainActivity::class.java),
+                        PendingIntent.FLAG_IMMUTABLE
+                    )
+                ),
                 pendingIntent
             )
         } catch (e: Exception) {
@@ -261,7 +275,7 @@ class KeepAliveService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID, "后台同步", NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "保持应用后台运行以同步数据和发送提醒"
+            description = "保持应用后台运行以同步 EVE 数据和发送工业/市场提醒"
             setShowBadge(false)
         }
         val nm = getSystemService(NotificationManager::class.java)
@@ -278,7 +292,7 @@ class KeepAliveService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("EVE Corp ERP")
-            .setContentText("后台同步中")
+            .setContentText("监控工业作业与市场订单中")
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setShowWhen(false)
@@ -289,6 +303,7 @@ class KeepAliveService : Service() {
         private const val TAG = "KeepAliveService"
         private const val CHANNEL_ID = "keep_alive"
         private const val NOTIFICATION_ID = 99999
+        private const val REQUEST_CODE_RESTART = 1002
 
         private const val TOKEN_REFRESH_INTERVAL = 10 * 60 * 1000L  // 10 分钟
 
@@ -302,6 +317,7 @@ class KeepAliveService : Service() {
         }
 
         fun stop(context: Context) {
+            AlertCheckReceiver.cancelAll(context)
             val intent = Intent(context, KeepAliveService::class.java)
             context.stopService(intent)
         }

@@ -6,7 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <application
         android:name=".EveCorpApp"
@@ -56,11 +61,55 @@
                 android:value="androidx.startup" />
         </provider>
 
-        <!-- 前台保活服务 -->
+        <!-- 前台保活服务 — 使用 specialUse 避免 Android 14+ 6分钟超时限制 -->
         <service
             android:name=".sync.KeepAliveService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="long_running_background_sync" />
+        </service>
+
+        <!-- 双进程守护 — 独立 :guard 进程，监控主服务存活状态 -->
+        <service
+            android:name=".sync.GuardService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:process=":guard">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="long_running_background_sync" />
+        </service>
+
+        <!-- AlarmManager 后台提醒广播接收器 -->
+        <receiver
+            android:name=".notification.AlertCheckReceiver"
+            android:exported="false" />
+
+        <!-- 系统事件广播接收器 — 监听开机/网络/时间变化等唤醒机会 -->
+        <receiver
+            android:name=".sync.SystemEventReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.USER_PRESENT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

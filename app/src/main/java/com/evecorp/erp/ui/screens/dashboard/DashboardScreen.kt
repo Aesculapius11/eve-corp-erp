@@ -90,7 +90,9 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // ── 钱包余额卡片（渐变背景） ──
-            item { WaterfallItem(0, waterfallTrigger.value) { BalanceHeroCard(uiState.balance) } }
+            item(key = "balance_hero") {
+                WaterfallItem(0, waterfallTrigger.value) { BalanceHeroCard(uiState.balance) }
+            }
 
             // ── 30 天资产变化 ──
             item {

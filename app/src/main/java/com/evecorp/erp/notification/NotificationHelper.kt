@@ -93,6 +93,7 @@ class NotificationHelper @Inject constructor(
         const val CHANNEL_MARKET = "market_alerts"
         const val INDUSTRY_NOTIFICATION_BASE = 10000
         const val MARKET_NOTIFICATION_BASE = 20000
+        const val ALERT_CHECK_WINDOW = 300_000L // 5分钟检查窗口
         val ALERT_THRESHOLDS = listOf(
             3_600_000L to "1小时",
             1_800_000L to "30分钟",
