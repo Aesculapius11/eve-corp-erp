@@ -28,7 +28,7 @@ import com.evecorp.erp.ui.UiState
 import com.evecorp.erp.ui.components.WaterfallItem
 import com.evecorp.erp.ui.components.rememberWaterfallTrigger
 import com.evecorp.erp.ui.components.triggerWaterfall
-import com.evecorp.erp.ui.formatIsk
+import com.evecorp.erp.ui.formatIskFull
 import com.evecorp.erp.ui.formatTimeAgo
 import com.evecorp.erp.ui.theme.*
 import kotlinx.coroutines.delay
@@ -357,7 +357,7 @@ private fun BalanceHeroCard(state: UiState<com.evecorp.erp.data.local.entity.Wal
                     }
                     is UiState.Success -> {
                         Text(
-                            text = formatIsk(state.data.balance),
+                            text = formatIskFull(state.data.balance),
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
