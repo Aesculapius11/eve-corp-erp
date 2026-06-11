@@ -193,33 +193,58 @@ private fun MarketOrderCard(orderWith: MarketOrderWith) {
 
     val daysLeft = order.duration - ((System.currentTimeMillis() - order.issued) / 86400000).toInt()
 
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // ── 标题行：物品名 + 订单类型标签 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     orderWith.typeName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    if (order.isBuyOrder) "买单" else "卖单",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (order.isBuyOrder) MaterialTheme.colorScheme.tertiary
-                    else MaterialTheme.colorScheme.primary
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (order.isBuyOrder)
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    else
+                        MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        text = if (order.isBuyOrder) "买单" else "卖单",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (order.isBuyOrder)
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        else
+                            MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
+            // ── 单价 + 剩余/总量 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("单价", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "单价",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text(
                         formatIsk(order.price),
                         style = MaterialTheme.typography.bodyLarge,
@@ -227,7 +252,11 @@ private fun MarketOrderCard(orderWith: MarketOrderWith) {
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("剩余/总量", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "剩余/总量",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text(
                         "${formatNumber(order.volumeRemain)} / ${formatNumber(order.volumeTotal)}",
                         style = MaterialTheme.typography.bodyLarge
@@ -237,27 +266,26 @@ private fun MarketOrderCard(orderWith: MarketOrderWith) {
 
             Spacer(Modifier.height(8.dp))
 
+            // ── 进度条 ──
             LinearProgressIndicator(
                 progress = { volumePercent },
-                modifier = Modifier.fillMaxWidth().height(4.dp),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.primary
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    "下单者: ${orderWith.issuerName}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // ── 下单者 ──
+            Text(
+                "下单者: ${orderWith.issuerName}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(Modifier.height(4.dp))
 
+            // ── 站点 + 剩余天数 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -270,12 +298,13 @@ private fun MarketOrderCard(orderWith: MarketOrderWith) {
                 Text(
                     if (daysLeft > 0) "剩余 ${daysLeft} 天" else "已过期",
                     style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (daysLeft <= 3) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (daysLeft <= 3) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            // Buy order extra info
+            // ── 买单额外信息 ──
             if (order.isBuyOrder) {
                 Spacer(Modifier.height(4.dp))
                 Row(
