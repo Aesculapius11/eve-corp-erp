@@ -104,6 +104,29 @@ fun MarketScreen(
                 }
             }
 
+            // 下单者过滤
+            if (uiState.availableIssuers.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterChip(
+                        selected = uiState.selectedIssuer == null,
+                        onClick = { viewModel.selectIssuer(null) },
+                        label = { Text("全部") }
+                    )
+                    uiState.availableIssuers.take(4).forEach { issuer ->
+                        FilterChip(
+                            selected = uiState.selectedIssuer == issuer,
+                            onClick = { viewModel.selectIssuer(if (uiState.selectedIssuer == issuer) null else issuer) },
+                            label = { Text(issuer, maxLines = 1) }
+                        )
+                    }
+                }
+            }
+
             // Content
             val orders = when (uiState.selectedTab) {
                 MarketTab.SELL -> uiState.sellOrders

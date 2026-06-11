@@ -21,6 +21,9 @@ data class MarketUiState(
     val sellOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
     val buyOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
     val selectedTab: MarketTab = MarketTab.SELL,
+    val selectedIssuer: String? = null, // null=全部
+    val availableIssuers: List<String> = emptyList(),
+    val allOrdersWithNames: List<MarketOrderWith> = emptyList(), // 内部用，不直接显示
     val isRefreshing: Boolean = false,
     val syncError: String? = null
 )
@@ -38,6 +41,7 @@ class MarketViewModel @Inject constructor(
 
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(MarketTab.SELL)
+    private val _selectedIssuer = MutableStateFlow<String?>(null)
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
@@ -65,13 +69,25 @@ class MarketViewModel @Inject constructor(
                 issuerName = order.issuedBy?.let { marketRepository.getTypeName(it) } ?: "—"
             )
         }
-        val sellOrders = withNames.filter { !it.order.isBuyOrder }
-        val buyOrders = withNames.filter { it.order.isBuyOrder }
+        val issuers = withNames.map { it.issuerName }.distinct().sorted()
+
         MarketUiState(
+            allOrdersWithNames = withNames,
+            selectedTab = tab,
+            availableIssuers = issuers,
+            syncError = error
+        )
+    }.combine(_selectedIssuer) { state, issuerFilter ->
+        val filtered = if (issuerFilter != null) {
+            state.allOrdersWithNames.filter { it.issuerName == issuerFilter }
+        } else state.allOrdersWithNames
+
+        val sellOrders = filtered.filter { !it.order.isBuyOrder }
+        val buyOrders = filtered.filter { it.order.isBuyOrder }
+        state.copy(
             sellOrders = UiState.Success(sellOrders),
             buyOrders = UiState.Success(buyOrders),
-            selectedTab = tab,
-            syncError = error
+            selectedIssuer = issuerFilter
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MarketUiState())
 
@@ -79,6 +95,10 @@ class MarketViewModel @Inject constructor(
 
     fun selectTab(tab: MarketTab) {
         _selectedTab.value = tab
+    }
+
+    fun selectIssuer(issuer: String?) {
+        _selectedIssuer.value = issuer
     }
 
     fun refresh() {

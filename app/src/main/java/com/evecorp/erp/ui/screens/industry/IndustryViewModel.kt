@@ -21,6 +21,10 @@ data class IndustryJobWith(
 data class IndustryUiState(
     val jobs: UiState<List<IndustryJobWith>> = UiState.Loading,
     val selectedTab: IndustryTab = IndustryTab.ALL,
+    val selectedStatus: String? = null, // null=全部, "active", "completed"
+    val selectedInstaller: String? = null, // null=全部, 具体角色名
+    val availableInstallers: List<String> = emptyList(),
+    val allJobsWithNames: List<IndustryJobWith> = emptyList(), // 内部用
     val isRefreshing: Boolean = false,
     val syncError: String? = null
 )
@@ -41,6 +45,8 @@ class IndustryViewModel @Inject constructor(
 
     private val corpId: Long get() = tokenManager.corporationId
     private val _selectedTab = MutableStateFlow(IndustryTab.ALL)
+    private val _selectedStatus = MutableStateFlow<String?>(null) // null=全部
+    private val _selectedInstaller = MutableStateFlow<String?>(null) // null=全部
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
@@ -69,13 +75,37 @@ class IndustryViewModel @Inject constructor(
                 installerName = industryRepository.getTypeName(job.installerId)
             )
         }
-        val filtered = if (tab.activities != null) {
-            withNames.filter { it.job.activityType in tab.activities }
-        } else withNames
+        val installers = withNames.map { it.installerName }.distinct().sorted()
+
         IndustryUiState(
-            jobs = UiState.Success(filtered),
+            allJobsWithNames = withNames,
             selectedTab = tab,
+            availableInstallers = installers,
             syncError = error
+        )
+    }.combine(_selectedStatus) { state, statusFilter ->
+        val filtered = when (statusFilter) {
+            "active" -> state.allJobsWithNames.filter { it.job.status == "active" }
+            "completed" -> state.allJobsWithNames.filter { it.job.status != "active" }
+            else -> state.allJobsWithNames
+        }
+        // 按活动类型过滤
+        val tabFiltered = if (state.selectedTab.activities != null) {
+            filtered.filter { it.job.activityType in state.selectedTab.activities }
+        } else filtered
+        state.copy(
+            jobs = UiState.Success(tabFiltered),
+            selectedStatus = statusFilter
+        )
+    }.combine(_selectedInstaller) { state, installerFilter ->
+        val finalFiltered = if (installerFilter != null) {
+            (state.jobs as? UiState.Success)?.data?.filter { it.installerName == installerFilter } ?: emptyList()
+        } else {
+            (state.jobs as? UiState.Success)?.data ?: emptyList()
+        }
+        state.copy(
+            jobs = UiState.Success(finalFiltered),
+            selectedInstaller = installerFilter
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), IndustryUiState())
 
@@ -83,6 +113,14 @@ class IndustryViewModel @Inject constructor(
 
     fun selectTab(tab: IndustryTab) {
         _selectedTab.value = tab
+    }
+
+    fun selectStatus(status: String?) {
+        _selectedStatus.value = status
+    }
+
+    fun selectInstaller(installer: String?) {
+        _selectedInstaller.value = installer
     }
 
     fun refresh() {

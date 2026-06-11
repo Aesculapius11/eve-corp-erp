@@ -103,6 +103,54 @@ fun IndustryScreen(
                 }
             }
 
+            // 过滤器
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 状态过滤
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterChip(
+                        selected = uiState.selectedStatus == null,
+                        onClick = { viewModel.selectStatus(null) },
+                        label = { Text("全部状态") }
+                    )
+                    FilterChip(
+                        selected = uiState.selectedStatus == "active",
+                        onClick = { viewModel.selectStatus("active") },
+                        label = { Text("进行中") }
+                    )
+                    FilterChip(
+                        selected = uiState.selectedStatus == "completed",
+                        onClick = { viewModel.selectStatus("completed") },
+                        label = { Text("已完成") }
+                    )
+                }
+
+                // 角色过滤（动态列表）
+                if (uiState.availableInstallers.isNotEmpty()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        FilterChip(
+                            selected = uiState.selectedInstaller == null,
+                            onClick = { viewModel.selectInstaller(null) },
+                            label = { Text("全部角色") }
+                        )
+                        uiState.availableInstallers.take(3).forEach { installer ->
+                            FilterChip(
+                                selected = uiState.selectedInstaller == installer,
+                                onClick = { viewModel.selectInstaller(if (uiState.selectedInstaller == installer) null else installer) },
+                                label = { Text(installer, maxLines = 1) }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Content
             when (val jobs = uiState.jobs) {
                 is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
