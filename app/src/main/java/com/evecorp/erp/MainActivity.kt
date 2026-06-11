@@ -27,11 +27,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // 启动前台保活服务
-        if (tokenManager.isLoggedIn()) {
-            KeepAliveService.start(this)
-        }
+        ensureServiceRunning()
 
         setContent {
             val isDarkMode by themeManager.isDarkMode.collectAsState(initial = null)
@@ -43,6 +39,18 @@ class MainActivity : ComponentActivity() {
                     authStateManager = authStateManager
                 )
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 每次回到前台都检查服务是否在运行
+        ensureServiceRunning()
+    }
+
+    private fun ensureServiceRunning() {
+        if (tokenManager.isLoggedIn()) {
+            KeepAliveService.start(this)
         }
     }
 }

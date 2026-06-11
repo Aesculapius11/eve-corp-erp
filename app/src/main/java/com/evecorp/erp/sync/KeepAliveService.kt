@@ -74,8 +74,28 @@ class KeepAliveService : Service() {
 
     override fun onDestroy() {
         serviceScope.cancel()
-        Log.d(TAG, "KeepAliveService destroyed")
+        Log.d(TAG, "KeepAliveService destroyed, scheduling restart")
         super.onDestroy()
+        // 被杀死后尝试重启
+        scheduleRestart()
+    }
+
+    private fun scheduleRestart() {
+        try {
+            val intent = Intent(applicationContext, KeepAliveService::class.java)
+            val pendingIntent = PendingIntent.getService(
+                applicationContext, 1, intent,
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            alarmManager.set(
+                android.app.AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + 3000, // 3秒后重启
+                pendingIntent
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to schedule restart", e)
+        }
     }
 
     /**
