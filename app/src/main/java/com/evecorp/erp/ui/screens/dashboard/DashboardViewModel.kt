@@ -139,6 +139,12 @@ class DashboardViewModel @Inject constructor(
     init {
         refresh()
         startCountdown()
+        // 监听同步间隔变化，立即重启倒计时
+        viewModelScope.launch {
+            dashboardPreferences.syncIntervalFlow.collect {
+                startCountdown()
+            }
+        }
     }
 
     private fun startCountdown() {

@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.evecorp.erp.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,6 +19,12 @@ class DashboardPreferences @Inject constructor(
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("dashboard_prefs", Context.MODE_PRIVATE)
+
+    private val _syncIntervalFlow = MutableStateFlow(getSyncIntervalMinutes())
+    val syncIntervalFlow: StateFlow<Int> = _syncIntervalFlow.asStateFlow()
+
+    private val _alertIntervalFlow = MutableStateFlow(getAlertIntervalMinutes())
+    val alertIntervalFlow: StateFlow<Int> = _alertIntervalFlow.asStateFlow()
 
     fun getCostIndexSystemId(): Long =
         prefs.getLong(KEY_COST_INDEX_SYSTEM_ID, Constants.HAAJINEN_SYSTEM_ID)
@@ -47,7 +56,9 @@ class DashboardPreferences @Inject constructor(
     }
 
     fun setSyncIntervalMinutes(minutes: Int) {
-        prefs.edit().putInt(KEY_SYNC_INTERVAL, minutes.coerceAtLeast(MIN_INTERVAL)).apply()
+        val coerced = minutes.coerceAtLeast(MIN_INTERVAL)
+        prefs.edit().putInt(KEY_SYNC_INTERVAL, coerced).apply()
+        _syncIntervalFlow.value = coerced
     }
 
     fun getAlertIntervalMinutes(): Int {
@@ -56,6 +67,8 @@ class DashboardPreferences @Inject constructor(
     }
 
     fun setAlertIntervalMinutes(minutes: Int) {
-        prefs.edit().putInt(KEY_ALERT_INTERVAL, minutes.coerceAtLeast(MIN_INTERVAL)).apply()
+        val coerced = minutes.coerceAtLeast(MIN_INTERVAL)
+        prefs.edit().putInt(KEY_ALERT_INTERVAL, coerced).apply()
+        _alertIntervalFlow.value = coerced
     }
 }
