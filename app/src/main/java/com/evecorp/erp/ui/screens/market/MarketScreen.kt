@@ -34,11 +34,6 @@ fun MarketScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val waterfallTrigger = rememberWaterfallTrigger()
 
-    LaunchedEffect(Unit) {
-        delay(100)
-        waterfallTrigger.triggerWaterfall()
-    }
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {

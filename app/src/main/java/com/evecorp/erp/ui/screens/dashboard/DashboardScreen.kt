@@ -42,12 +42,6 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val waterfallTrigger = rememberWaterfallTrigger()
 
-    // 首次加载触发瀑布动画
-    LaunchedEffect(Unit) {
-        delay(100)
-        waterfallTrigger.triggerWaterfall()
-    }
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
