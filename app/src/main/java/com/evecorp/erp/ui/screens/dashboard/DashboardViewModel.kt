@@ -98,28 +98,19 @@ class DashboardViewModel @Inject constructor(
         walletRepository.getBalanceHistory(corpId).map { UiState.Success(it) },
         _selectedSystemId.flatMapLatest { systemId ->
             industryRepository.getCostIndex(systemId).map { it?.let { UiState.Success(it) } ?: UiState.Loading }
+        },
+        _hasSynced
+    ) { balance, journal, history, costIndex, hasSynced ->
+        if (!hasSynced) {
+            DashboardUiState() // 全部 Loading
+        } else {
+            DashboardUiState(
+                balance = balance,
+                journal = journal,
+                costIndex = costIndex,
+                balanceHistory = history
+            )
         }
-    ) { balance, journal, history, costIndex ->
-        DashboardUiState(
-            balance = balance,
-            journal = journal,
-            costIndex = costIndex,
-            balanceHistory = history
-        )
-    }.combine(_hasSynced) { state, hasSynced ->
-        if (hasSynced) state
-        else state.copy(
-            journal = UiState.Loading,
-            balanceHistory = UiState.Loading
-        )
-    }.combine(_isRefreshing) { state, isRefreshing ->
-        if (isRefreshing) state.copy(
-            balance = UiState.Loading,
-            journal = UiState.Loading,
-            costIndex = UiState.Loading,
-            balanceHistory = UiState.Loading
-        )
-        else state
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
     val uiState: StateFlow<DashboardUiState> = combine(
@@ -189,12 +180,18 @@ class DashboardViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
+            // 先同步余额（快），立即显示
             walletRepository.syncBalance(corpId)
-            walletRepository.syncJournal(corpId)
-            walletRepository.reconstructHistoryFromJournal(corpId)
-            industryRepository.syncCostIndices(listOf(_selectedSystemId.value))
             _hasSynced.value = true
             _isRefreshing.value = false
+            // 其余数据后台同步，不阻塞 UI
+            launch {
+                walletRepository.syncJournal(corpId)
+                walletRepository.reconstructHistoryFromJournal(corpId)
+            }
+            launch {
+                industryRepository.syncCostIndices(listOf(_selectedSystemId.value))
+            }
         }
     }
 }
