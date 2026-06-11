@@ -207,6 +207,14 @@ private fun IndustryJobCard(jobWith: IndustryJobWith) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                "安装者: ${jobWith.installerName}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Spacer(Modifier.height(12.dp))
 
             LinearProgressIndicator(

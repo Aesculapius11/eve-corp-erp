@@ -59,6 +59,29 @@ class MarketRepository @Inject constructor(
         }
     }
 
+    /** 批量解析并缓存角色名称 */
+    suspend fun syncCharacterNames(characterIds: List<Long>) {
+        try {
+            val missing = characterIds.filter { typeNameCacheDao.getName(it) == null }
+            if (missing.isEmpty()) return
+
+            missing.chunked(100).forEach { chunk ->
+                val response = esiApi.postUniverseNames(chunk)
+                if (response.isSuccessful) {
+                    val entries = response.body()?.map {
+                        TypeNameCacheEntity(typeId = it.id, name = it.name)
+                    } ?: emptyList()
+                    if (entries.isNotEmpty()) {
+                        typeNameCacheDao.insertAll(entries)
+                    }
+                }
+                delay(Constants.ESI_PAGE_DELAY_MS)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to sync character names", e)
+        }
+    }
+
     suspend fun syncOrders(corpId: Long): Result<Unit> {
         return try {
             val allOrders = mutableListOf<MarketOrderDto>()
@@ -83,6 +106,11 @@ class MarketRepository @Inject constructor(
 
             marketOrderDao.deleteAll(corpId)
             marketOrderDao.insertAll(allOrders.mapNotNull { it.toEntityOrNull(corpId) })
+
+            // 解析下单者角色名称
+            val issuerIds = allOrders.mapNotNull { it.issuedBy }.distinct()
+            syncCharacterNames(issuerIds)
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

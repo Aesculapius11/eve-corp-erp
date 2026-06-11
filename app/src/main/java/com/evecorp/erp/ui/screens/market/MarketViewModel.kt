@@ -13,7 +13,8 @@ import javax.inject.Inject
 
 data class MarketOrderWith(
     val order: MarketOrderEntity,
-    val typeName: String
+    val typeName: String,
+    val issuerName: String
 )
 
 data class MarketUiState(
@@ -47,7 +48,8 @@ class MarketViewModel @Inject constructor(
         val withNames = allOrders.map { order ->
             MarketOrderWith(
                 order = order,
-                typeName = marketRepository.getTypeName(order.typeId)
+                typeName = marketRepository.getTypeName(order.typeId),
+                issuerName = order.issuedBy?.let { marketRepository.getTypeName(it) } ?: "—"
             )
         }
         val sellOrders = withNames.filter { !it.order.isBuyOrder }

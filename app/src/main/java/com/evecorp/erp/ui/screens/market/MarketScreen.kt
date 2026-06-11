@@ -255,6 +255,19 @@ private fun MarketOrderCard(orderWith: MarketOrderWith) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
+                    "下单者: ${orderWith.issuerName}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
                     "站点: ${order.locationId}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

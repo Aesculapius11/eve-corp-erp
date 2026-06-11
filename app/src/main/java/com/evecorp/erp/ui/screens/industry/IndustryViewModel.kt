@@ -14,7 +14,8 @@ import javax.inject.Inject
 data class IndustryJobWith(
     val job: IndustryJobEntity,
     val blueprintName: String,
-    val productName: String
+    val productName: String,
+    val installerName: String
 )
 
 data class IndustryUiState(
@@ -52,7 +53,8 @@ class IndustryViewModel @Inject constructor(
             IndustryJobWith(
                 job = job,
                 blueprintName = industryRepository.getTypeName(job.blueprintTypeId),
-                productName = job.productTypeId?.let { industryRepository.getTypeName(it) } ?: "—"
+                productName = job.productTypeId?.let { industryRepository.getTypeName(it) } ?: "—",
+                installerName = industryRepository.getTypeName(job.installerId)
             )
         }
         val filtered = if (tab.activities != null) {

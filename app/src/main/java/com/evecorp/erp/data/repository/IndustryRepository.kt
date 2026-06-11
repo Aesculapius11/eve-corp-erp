@@ -104,6 +104,29 @@ class IndustryRepository @Inject constructor(
         }
     }
 
+    /** 批量解析并缓存角色名称 */
+    suspend fun syncCharacterNames(characterIds: List<Long>) {
+        try {
+            val missing = characterIds.filter { typeNameCacheDao.getName(it) == null }
+            if (missing.isEmpty()) return
+
+            missing.chunked(100).forEach { chunk ->
+                val response = esiApi.postUniverseNames(chunk)
+                if (response.isSuccessful) {
+                    val entries = response.body()?.map {
+                        TypeNameCacheEntity(typeId = it.id, name = it.name)
+                    } ?: emptyList()
+                    if (entries.isNotEmpty()) {
+                        typeNameCacheDao.insertAll(entries)
+                    }
+                }
+                delay(Constants.ESI_PAGE_DELAY_MS)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to sync character names", e)
+        }
+    }
+
     suspend fun syncJobs(corpId: Long): Result<Unit> {
         return try {
             val allJobs = mutableListOf<IndustryJobDto>()
@@ -134,6 +157,10 @@ class IndustryRepository @Inject constructor(
                 listOfNotNull(dto.blueprintTypeId, dto.productTypeId)
             }.flatten().distinct()
             syncTypeNames(typeIds)
+
+            // 解析安装者角色名称
+            val installerIds = allJobs.map { it.installerId }.distinct()
+            syncCharacterNames(installerIds)
 
             Result.success(Unit)
         } catch (e: Exception) {
