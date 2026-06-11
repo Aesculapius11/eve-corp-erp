@@ -144,23 +144,31 @@ class DashboardViewModel @Inject constructor(
     private fun startCountdown() {
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
-            val intervalMs = dashboardPreferences.getSyncIntervalMinutes() * 60_000L
-            var nextSyncTime = System.currentTimeMillis() + intervalMs
+            var nextSyncTime = System.currentTimeMillis() + dashboardPreferences.getSyncIntervalMinutes() * 60_000L
 
             while (true) {
                 kotlinx.coroutines.delay(1000)
+
+                // 每次循环都读取最新间隔设置
+                val intervalMs = dashboardPreferences.getSyncIntervalMinutes() * 60_000L
                 val remaining = nextSyncTime - System.currentTimeMillis()
+
                 if (remaining <= 0) {
-                    // 到时间了，自动刷新
                     refreshInternal()
                     nextSyncTime = System.currentTimeMillis() + intervalMs
                 }
+
                 val totalSec = ((nextSyncTime - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
                 val min = totalSec / 60
                 val sec = totalSec % 60
                 _nextSyncCountdown.value = if (min > 0) "${min}分${sec}秒后刷新" else "${sec}秒后刷新"
             }
         }
+    }
+
+    /** 设置变更时重启倒计时 */
+    fun resetCountdown() {
+        startCountdown()
     }
 
     private suspend fun refreshInternal() {

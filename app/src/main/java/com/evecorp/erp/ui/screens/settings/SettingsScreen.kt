@@ -366,13 +366,13 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     listOf(5, 10, 15, 30).forEach { minutes ->
                         FilterChip(
                             selected = uiState.syncInterval == minutes,
                             onClick = { viewModel.setSyncInterval(minutes) },
-                            label = { Text("${minutes}分钟") },
+                            label = { Text("${minutes}分", style = MaterialTheme.typography.labelMedium) },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -393,13 +393,13 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     listOf(5, 10, 15, 30).forEach { minutes ->
                         FilterChip(
                             selected = uiState.alertInterval == minutes,
                             onClick = { viewModel.setAlertInterval(minutes) },
-                            label = { Text("${minutes}分钟") },
+                            label = { Text("${minutes}分", style = MaterialTheme.typography.labelMedium) },
                             modifier = Modifier.weight(1f)
                         )
                     }
