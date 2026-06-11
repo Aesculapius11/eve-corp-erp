@@ -72,7 +72,8 @@ data class DashboardUiState(
     val selectedSystemName: String = "吉他",
     val systemSearchResults: List<SystemSearchResult> = emptyList(),
     val isSearchingSystem: Boolean = false,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val nextSyncCountdown: String = ""
 )
 
 @HiltViewModel
@@ -90,6 +91,8 @@ class DashboardViewModel @Inject constructor(
     private val _systemSearchResults = MutableStateFlow<List<SystemSearchResult>>(emptyList())
     private val _isSearchingSystem = MutableStateFlow(false)
     private val _hasSynced = MutableStateFlow(false)
+    private val _nextSyncCountdown = MutableStateFlow("")
+    private var countdownJob: kotlinx.coroutines.Job? = null
 
     // 财务数据流（balance + journal + history + costIndex）
     private val financialData: StateFlow<DashboardUiState> = combine(
@@ -129,9 +132,53 @@ class DashboardViewModel @Inject constructor(
             systemSearchResults = searchResults,
             isSearchingSystem = searching
         )
+    }.combine(_nextSyncCountdown) { state, countdown ->
+        state.copy(nextSyncCountdown = countdown)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
-    init { refresh() }
+    init {
+        refresh()
+        startCountdown()
+    }
+
+    private fun startCountdown() {
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            val intervalMs = dashboardPreferences.getSyncIntervalMinutes() * 60_000L
+            var nextSyncTime = System.currentTimeMillis() + intervalMs
+
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                val remaining = nextSyncTime - System.currentTimeMillis()
+                if (remaining <= 0) {
+                    // 到时间了，自动刷新
+                    refreshInternal()
+                    nextSyncTime = System.currentTimeMillis() + intervalMs
+                }
+                val totalSec = ((nextSyncTime - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+                val min = totalSec / 60
+                val sec = totalSec % 60
+                _nextSyncCountdown.value = if (min > 0) "${min}分${sec}秒后刷新" else "${sec}秒后刷新"
+            }
+        }
+    }
+
+    private suspend fun refreshInternal() {
+        _isRefreshing.value = true
+        walletRepository.syncBalance(corpId)
+        kotlinx.coroutines.delay(100)
+        _hasSynced.value = true
+        _isRefreshing.value = false
+        kotlinx.coroutines.coroutineScope {
+            launch {
+                walletRepository.syncJournal(corpId)
+                walletRepository.reconstructHistoryFromJournal(corpId)
+            }
+            launch {
+                industryRepository.syncCostIndices(listOf(_selectedSystemId.value))
+            }
+        }
+    }
 
     fun selectSystem(systemId: Long, systemName: String) {
         _selectedSystemId.value = systemId
@@ -179,21 +226,9 @@ class DashboardViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            _isRefreshing.value = true
-            // 先同步余额（快），立即显示
-            walletRepository.syncBalance(corpId)
-            // 等待 Room Flow 发射新值
-            kotlinx.coroutines.delay(100)
-            _hasSynced.value = true
-            _isRefreshing.value = false
-            // 其余数据后台同步，不阻塞 UI
-            launch {
-                walletRepository.syncJournal(corpId)
-                walletRepository.reconstructHistoryFromJournal(corpId)
-            }
-            launch {
-                industryRepository.syncCostIndices(listOf(_selectedSystemId.value))
-            }
+            refreshInternal()
+            // 手动刷新后重置倒计时
+            startCountdown()
         }
     }
 }

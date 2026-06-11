@@ -54,6 +54,15 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
+                    // 倒计时
+                    if (uiState.nextSyncCountdown.isNotEmpty()) {
+                        Text(
+                            text = uiState.nextSyncCountdown,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     FilledIconButton(
                         onClick = {
                             viewModel.refresh()
