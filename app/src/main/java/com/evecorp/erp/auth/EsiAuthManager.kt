@@ -209,12 +209,14 @@ class EsiAuthManager @Inject constructor(
                 .header("Authorization", "Bearer $token")
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val json = JSONObject(response.body!!.string())
-                tokenManager.corporationId = json.getLong("corporation_id")
-            } else {
-                Log.e(TAG, "fetchCorporationId failed: ${response.code}")
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val bodyStr = response.body?.string() ?: return
+                    val json = JSONObject(bodyStr)
+                    tokenManager.corporationId = json.getLong("corporation_id")
+                } else {
+                    Log.e(TAG, "fetchCorporationId failed: ${response.code}")
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "fetchCorporationId exception", e)

@@ -9,10 +9,10 @@ import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.data.local.dao.IndustryJobDao
 import com.evecorp.erp.data.local.dao.MarketOrderDao
 import com.evecorp.erp.data.local.dao.TypeNameCacheDao
+import com.evecorp.erp.util.AppUtils
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
-import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 /**
@@ -72,7 +72,7 @@ class AlertWorker @AssistedInject constructor(
                     // 在这个时间窗口内，且还没发过通知
                     if (!prefs.getBoolean(alertKey, false)) {
                         val title = if (threshold == 0L) "工业作业完成" else "工业作业即将完成"
-                        val message = "$productName — ${getActivityLabel(job.activityType)} — 还剩$label"
+                        val message = "$productName — ${AppUtils.getActivityLabel(job.activityType)} — 还剩$label"
 
                         notificationHelper.sendIndustryNotification(
                             notificationId = NotificationHelper.INDUSTRY_NOTIFICATION_BASE + job.jobId.toInt(),
@@ -102,7 +102,7 @@ class AlertWorker @AssistedInject constructor(
 
         // 计算当前订单状态的哈希
         val currentHash = orders.joinToString("|") { "${it.orderId}:${it.volumeRemain}:${it.price}:${it.state}" }
-            .let { md5(it) }
+            .let { AppUtils.md5(it) }
 
         val previousHash = prefs.getString(KEY_MARKET_HASH, null)
 
@@ -159,20 +159,6 @@ class AlertWorker @AssistedInject constructor(
             editor.remove("industry_${jobId}_$threshold")
         }
         editor.apply()
-    }
-
-    private fun getActivityLabel(activityType: String): String = when (activityType) {
-        "manufacturing" -> "制造"
-        "invention" -> "发明"
-        "copying" -> "拷贝"
-        "researching_time_efficiency" -> "时间研究"
-        "researching_material_efficiency" -> "材料研究"
-        else -> activityType
-    }
-
-    private fun md5(input: String): String {
-        val bytes = MessageDigest.getInstance("MD5").digest(input.toByteArray())
-        return bytes.joinToString("") { "%02x".format(it) }
     }
 
     companion object {

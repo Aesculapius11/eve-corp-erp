@@ -20,20 +20,24 @@ class TokenRefresher @Inject constructor(
     private val mutex = Mutex()
 
     /**
-     * 同步刷新 token，供 Interceptor 调用。
-     * 用 Mutex 确保并发时只刷新一次。
+     * 挂起版本刷新 token，供协程调用（推荐）。
+     */
+    suspend fun refresh(): String? {
+        return mutex.withLock {
+            if (!tokenManager.isTokenExpired()) {
+                return@withLock tokenManager.getAccessToken()
+            }
+            val result = refreshToken()
+            result?.let { tokenManager.getAccessToken() }
+        }
+    }
+
+    /**
+     * 同步刷新 token，仅供 Interceptor 等无法挂起的场景调用。
      */
     fun refreshBlocking(): String? {
         return runBlocking {
-            mutex.withLock {
-                // 检查是否仍然过期（可能在等待锁期间已被其他线程刷新）
-                if (!tokenManager.isTokenExpired()) {
-                    return@withLock tokenManager.getAccessToken()
-                }
-                val result = refreshToken()
-                // refreshToken 内部已调用 tokenManager.saveTokens，所以直接返回最新 token
-                result?.let { tokenManager.getAccessToken() }
-            }
+            refresh()
         }
     }
 
@@ -58,20 +62,22 @@ class TokenRefresher @Inject constructor(
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val json = JSONObject(response.body!!.string())
-                val newAccess = json.getString("access_token")
-                val newRefresh = json.getString("refresh_token")
-                val expiresIn = json.getInt("expires_in")
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val bodyStr = response.body?.string() ?: return@use null
+                    val json = JSONObject(bodyStr)
+                    val newAccess = json.getString("access_token")
+                    val newRefresh = json.getString("refresh_token")
+                    val expiresIn = json.getInt("expires_in")
 
-                tokenManager.saveTokens(newAccess, newRefresh, expiresIn)
-                newAccess
-            } else {
-                if (response.code == 400 || response.code == 401) {
-                    tokenManager.logout()
+                    tokenManager.saveTokens(newAccess, newRefresh, expiresIn)
+                    newAccess
+                } else {
+                    if (response.code == 400 || response.code == 401) {
+                        tokenManager.logout()
+                    }
+                    null
                 }
-                null
             }
         } catch (e: Exception) {
             null
