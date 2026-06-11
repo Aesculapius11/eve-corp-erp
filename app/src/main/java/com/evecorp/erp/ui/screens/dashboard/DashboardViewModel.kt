@@ -182,6 +182,8 @@ class DashboardViewModel @Inject constructor(
             _isRefreshing.value = true
             // 先同步余额（快），立即显示
             walletRepository.syncBalance(corpId)
+            // 等待 Room Flow 发射新值
+            kotlinx.coroutines.delay(100)
             _hasSynced.value = true
             _isRefreshing.value = false
             // 其余数据后台同步，不阻塞 UI
