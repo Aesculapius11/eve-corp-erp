@@ -1,9 +1,11 @@
 package com.evecorp.erp.ui.screens.market
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -104,12 +106,13 @@ fun MarketScreen(
                 }
             }
 
-            // 下单者过滤
+            // 下单者过滤（可左右滑动）
             if (uiState.availableIssuers.isNotEmpty()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                        .horizontalScroll(rememberScrollState())
+                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     FilterChip(
@@ -117,7 +120,7 @@ fun MarketScreen(
                         onClick = { viewModel.selectIssuer(null) },
                         label = { Text("全部") }
                     )
-                    uiState.availableIssuers.take(4).forEach { issuer ->
+                    uiState.availableIssuers.forEach { issuer ->
                         FilterChip(
                             selected = uiState.selectedIssuer == issuer,
                             onClick = { viewModel.selectIssuer(if (uiState.selectedIssuer == issuer) null else issuer) },

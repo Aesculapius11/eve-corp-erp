@@ -1,9 +1,11 @@
 package com.evecorp.erp.ui.screens.industry
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -105,11 +107,14 @@ fun IndustryScreen(
 
             // 过滤器
             Column(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 状态过滤
+                // 状态过滤（可左右滑动）
                 Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     FilterChip(
@@ -129,18 +134,18 @@ fun IndustryScreen(
                     )
                 }
 
-                // 角色过滤（动态列表）
+                // 角色过滤（可左右滑动）
                 if (uiState.availableInstallers.isNotEmpty()) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         FilterChip(
                             selected = uiState.selectedInstaller == null,
                             onClick = { viewModel.selectInstaller(null) },
                             label = { Text("全部角色") }
                         )
-                        uiState.availableInstallers.take(3).forEach { installer ->
+                        uiState.availableInstallers.forEach { installer ->
                             FilterChip(
                                 selected = uiState.selectedInstaller == installer,
                                 onClick = { viewModel.selectInstaller(if (uiState.selectedInstaller == installer) null else installer) },
