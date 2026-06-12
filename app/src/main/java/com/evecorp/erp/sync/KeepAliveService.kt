@@ -122,6 +122,8 @@ class KeepAliveService : Service() {
                         tokenRefresher.refresh()
                         Log.d(TAG, "Token refreshed successfully")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "Token refresh failed", e)
                 }
@@ -143,6 +145,8 @@ class KeepAliveService : Service() {
                         checkIndustryAlerts()
                         checkMarketAlerts()
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "Alert check failed", e)
                 }
@@ -167,8 +171,12 @@ class KeepAliveService : Service() {
                         industryRepository.syncCostIndices(listOf(Constants.HAAJINEN_SYSTEM_ID))
                         industryRepository.syncJobs(corpId)
                         marketRepository.syncOrders(corpId)
+                        checkIndustryAlerts()
+                        checkMarketAlerts()
                         Log.d(TAG, "Background data sync completed")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "Background data sync failed", e)
                 }
