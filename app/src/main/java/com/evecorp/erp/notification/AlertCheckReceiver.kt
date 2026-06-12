@@ -23,7 +23,7 @@ import javax.inject.Inject
 /**
  * AlarmManager 触发的后台提醒检查接收器
  * 在 KeepAliveService 被系统杀死后，仍能通过 AlarmManager 唤醒执行提醒检查。
- * 使用 setAndAllowWhileIdle() 确保在 Doze 模式下也能触发。
+ * 使用 goAsync() 在后台线程执行，避免阻塞主线程导致 ANR。
  */
 @AndroidEntryPoint
 class AlertCheckReceiver : BroadcastReceiver() {
@@ -53,35 +53,45 @@ class AlertCheckReceiver : BroadcastReceiver() {
 
         val corpId = tokenManager.corporationId
 
-        when (action) {
-            ACTION_CHECK_ALERTS -> {
+        // 使用 goAsync() 在后台线程执行，避免阻塞主线程导致 ANR
+        val pendingResult = goAsync()
+        Thread {
+            try {
                 runBlocking {
-                    try {
-                        checkIndustryAlerts(corpId)
-                        checkMarketAlerts()
-                        Log.d(TAG, "Alert check completed via AlarmManager")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Alert check failed", e)
-                    }
-                }
-                scheduleNextCheck(context)
-            }
+                    when (action) {
+                        ACTION_CHECK_ALERTS -> {
+                            try {
+                                checkIndustryAlerts(corpId)
+                                checkMarketAlerts()
+                                Log.d(TAG, "Alert check completed via AlarmManager")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Alert check failed", e)
+                            }
+                        }
 
-            ACTION_SYNC_DATA -> {
-                runBlocking {
-                    try {
-                        walletRepository.syncBalance(corpId)
-                        walletRepository.syncJournal(corpId)
-                        industryRepository.syncCostIndices(listOf(com.evecorp.erp.Constants.HAAJINEN_SYSTEM_ID))
-                        industryRepository.syncJobs(corpId)
-                        marketRepository.syncOrders(corpId)
-                        Log.d(TAG, "Data sync completed via AlarmManager")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Data sync failed", e)
+                        ACTION_SYNC_DATA -> {
+                            try {
+                                walletRepository.syncBalance(corpId)
+                                walletRepository.syncJournal(corpId)
+                                industryRepository.syncCostIndices(listOf(com.evecorp.erp.Constants.HAAJINEN_SYSTEM_ID))
+                                industryRepository.syncJobs(corpId)
+                                marketRepository.syncOrders(corpId)
+                                Log.d(TAG, "Data sync completed via AlarmManager")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Data sync failed", e)
+                            }
+                        }
                     }
                 }
-                scheduleNextSync(context)
+            } finally {
+                pendingResult.finish()
             }
+        }.start()
+
+        // 调度下一次检查（在主线程快速完成）
+        when (action) {
+            ACTION_CHECK_ALERTS -> scheduleNextCheck(context)
+            ACTION_SYNC_DATA -> scheduleNextSync(context)
         }
     }
 
@@ -92,6 +102,7 @@ class AlertCheckReceiver : BroadcastReceiver() {
         val prefs = ctx.getSharedPreferences("alert_prefs", Context.MODE_PRIVATE)
         val jobs = industryJobDao.getActiveJobs(corpId).first()
         val now = System.currentTimeMillis()
+        val checkWindow = dashboardPreferences.getAlertIntervalMinutes() * 60_000L
 
         for (job in jobs) {
             val timeLeft = job.endDate - now
@@ -102,18 +113,20 @@ class AlertCheckReceiver : BroadcastReceiver() {
             for ((threshold, label) in NotificationHelper.ALERT_THRESHOLDS) {
                 val alertKey = "industry_${job.jobId}_$threshold"
 
-                if (timeLeft in (threshold - NotificationHelper.ALERT_CHECK_WINDOW)..threshold) {
+                if (timeLeft in (threshold - checkWindow)..threshold) {
                     if (!prefs.getBoolean(alertKey, false)) {
                         val title = if (threshold == 0L) "工业作业完成" else "工业作业即将完成"
                         val message = "$productName — ${AppUtils.getActivityLabel(job.activityType)} — 还剩$label"
 
                         notificationHelper.sendIndustryNotification(
-                            notificationId = NotificationHelper.INDUSTRY_NOTIFICATION_BASE + job.jobId.toInt(),
+                            notificationId = NotificationHelper.safeNotificationId(
+                                NotificationHelper.INDUSTRY_NOTIFICATION_BASE, job.jobId
+                            ),
                             title = title,
                             message = message
                         )
 
-                        prefs.edit().putBoolean(alertKey, true).apply()
+                        prefs.edit().putBoolean(alertKey, true).commit()
                         Log.d(TAG, "Industry alert sent via AlarmManager: $alertKey")
                     }
                 }
@@ -121,7 +134,7 @@ class AlertCheckReceiver : BroadcastReceiver() {
 
             if (timeLeft < -3_600_000L) {
                 for ((threshold, _) in NotificationHelper.ALERT_THRESHOLDS) {
-                    prefs.edit().remove("industry_${job.jobId}_$threshold").apply()
+                    prefs.edit().remove("industry_${job.jobId}_$threshold").commit()
                 }
             }
         }
@@ -170,7 +183,7 @@ class AlertCheckReceiver : BroadcastReceiver() {
             .putString(KEY_MARKET_HASH, currentHash)
             .putStringSet(KEY_MARKET_ORDER_IDS, currentOrderIds)
             .putStringSet(KEY_MARKET_DETAILS, orders.map { "${it.orderId}:${it.volumeRemain}:${it.price}" }.toSet())
-            .apply()
+            .commit()
     }
 
     companion object {

@@ -5,7 +5,6 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.startup.Initializer
 import androidx.work.Configuration
 import androidx.work.WorkManager
-import com.evecorp.erp.notification.AlertWorker
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -27,7 +26,7 @@ class SyncInitializer : Initializer<WorkManager> {
             .build()
         WorkManager.initialize(context, config)
 
-        // Schedule periodic sync
+        // Schedule periodic sync (数据同步继续由 WorkManager 负责)
         val workManager = WorkManager.getInstance(context)
         workManager.enqueueUniquePeriodicWork(
             SyncWorker.WORK_NAME,
@@ -35,12 +34,8 @@ class SyncInitializer : Initializer<WorkManager> {
             SyncWorker.createPeriodicRequest()
         )
 
-        // Schedule periodic alerts (industry + market)
-        workManager.enqueueUniquePeriodicWork(
-            AlertWorker.WORK_NAME,
-            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
-            AlertWorker.createPeriodicRequest()
-        )
+        // AlertWorker 已移除 — KeepAliveService + AlarmManager 覆盖提醒检查
+        // 三套并行机制存在竞态条件和重复通知风险
 
         return workManager
     }

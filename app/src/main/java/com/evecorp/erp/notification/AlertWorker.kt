@@ -75,12 +75,14 @@ class AlertWorker @AssistedInject constructor(
                         val message = "$productName — ${AppUtils.getActivityLabel(job.activityType)} — 还剩$label"
 
                         notificationHelper.sendIndustryNotification(
-                            notificationId = NotificationHelper.INDUSTRY_NOTIFICATION_BASE + job.jobId.toInt(),
+                            notificationId = NotificationHelper.safeNotificationId(
+                                NotificationHelper.INDUSTRY_NOTIFICATION_BASE, job.jobId
+                            ),
                             title = title,
                             message = message
                         )
 
-                        prefs.edit().putBoolean(alertKey, true).apply()
+                        prefs.edit().putBoolean(alertKey, true).commit()
                         Log.d(TAG, "Industry alert sent: $alertKey")
                     }
                 }
@@ -145,12 +147,12 @@ class AlertWorker @AssistedInject constructor(
             }
         }
 
-        // 保存当前状态
+        // 保存当前状态 — commit() 确保立即同步，避免竞态
         prefs.edit()
             .putString(KEY_MARKET_HASH, currentHash)
             .putStringSet(KEY_MARKET_ORDER_IDS, currentOrderIds)
             .putStringSet(KEY_MARKET_ORDER_DETAILS, orders.map { "${it.orderId}:${it.volumeRemain}:${it.price}" }.toSet())
-            .apply()
+            .commit()
     }
 
     private fun cleanIndustryAlertKeys(jobId: Long) {
@@ -158,7 +160,7 @@ class AlertWorker @AssistedInject constructor(
         for ((threshold, _) in NotificationHelper.ALERT_THRESHOLDS) {
             editor.remove("industry_${jobId}_$threshold")
         }
-        editor.apply()
+        editor.commit()
     }
 
     companion object {

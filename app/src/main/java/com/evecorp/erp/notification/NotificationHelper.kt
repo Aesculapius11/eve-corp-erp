@@ -100,5 +100,10 @@ class NotificationHelper @Inject constructor(
             300_000L to "5分钟",
             0L to "已完成"
         )
+
+        /** 安全地将 Long jobId 转为 Int 通知 ID，避免溢出 */
+        fun safeNotificationId(base: Int, jobId: Long): Int {
+            return base + (jobId % 10000).toInt()
+        }
     }
 }

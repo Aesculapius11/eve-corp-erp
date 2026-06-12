@@ -201,12 +201,14 @@ class KeepAliveService : Service() {
                         val message = "$productName — ${AppUtils.getActivityLabel(job.activityType)} — 还剩$label"
 
                         notificationHelper.sendIndustryNotification(
-                            notificationId = NotificationHelper.INDUSTRY_NOTIFICATION_BASE + job.jobId.toInt(),
+                            notificationId = NotificationHelper.safeNotificationId(
+                                NotificationHelper.INDUSTRY_NOTIFICATION_BASE, job.jobId
+                            ),
                             title = title,
                             message = message
                         )
 
-                        prefs.edit().putBoolean(alertKey, true).apply()
+                        prefs.edit().putBoolean(alertKey, true).commit()
                         Log.d(TAG, "Industry alert sent: $alertKey")
                     }
                 }
@@ -215,7 +217,7 @@ class KeepAliveService : Service() {
             // 清理过期的提醒标记
             if (timeLeft < -3_600_000L) {
                 for ((threshold, _) in NotificationHelper.ALERT_THRESHOLDS) {
-                    prefs.edit().remove("industry_${job.jobId}_$threshold").apply()
+                    prefs.edit().remove("industry_${job.jobId}_$threshold").commit()
                 }
             }
         }
@@ -265,7 +267,7 @@ class KeepAliveService : Service() {
             .putString(KEY_MARKET_HASH, currentHash)
             .putStringSet(KEY_MARKET_ORDER_IDS, currentOrderIds)
             .putStringSet(KEY_MARKET_DETAILS, orders.map { "${it.orderId}:${it.volumeRemain}:${it.price}" }.toSet())
-            .apply()
+            .commit()
     }
 
 
