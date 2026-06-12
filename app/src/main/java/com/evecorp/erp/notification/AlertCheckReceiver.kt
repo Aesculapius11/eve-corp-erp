@@ -38,7 +38,11 @@ class AlertCheckReceiver : BroadcastReceiver() {
     @Inject lateinit var industryRepository: IndustryRepository
     @Inject lateinit var marketRepository: MarketRepository
 
+    // BroadcastReceiver.onReceive() 的 context 参数，保存为字段供 check 方法使用
+    private var appContext: Context? = null
+
     override fun onReceive(context: Context, intent: Intent) {
+        appContext = context
         val action = intent.action ?: return
         Log.d(TAG, "Received alarm: $action")
 
@@ -81,8 +85,11 @@ class AlertCheckReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun requireContext(): Context = appContext ?: error("Context not available")
+
     private suspend fun checkIndustryAlerts(corpId: Long) {
-        val prefs = context.getSharedPreferences("alert_prefs", Context.MODE_PRIVATE)
+        val ctx = requireContext()
+        val prefs = ctx.getSharedPreferences("alert_prefs", Context.MODE_PRIVATE)
         val jobs = industryJobDao.getActiveJobs(corpId).first()
         val now = System.currentTimeMillis()
 
@@ -121,7 +128,8 @@ class AlertCheckReceiver : BroadcastReceiver() {
     }
 
     private suspend fun checkMarketAlerts() {
-        val prefs = context.getSharedPreferences("alert_prefs", Context.MODE_PRIVATE)
+        val ctx = requireContext()
+        val prefs = ctx.getSharedPreferences("alert_prefs", Context.MODE_PRIVATE)
         val orders = marketOrderDao.getAllActiveOrders().first()
         val currentOrderIds = orders.map { it.orderId.toString() }.toSet()
         val currentHash = orders.joinToString("|") { "${it.orderId}:${it.volumeRemain}:${it.price}:${it.state}" }
