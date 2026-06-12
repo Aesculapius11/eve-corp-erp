@@ -71,17 +71,6 @@
                 android:value="long_running_background_sync" />
         </service>
 
-        <!-- 双进程守护 — 独立 :guard 进程，监控主服务存活状态 -->
-        <service
-            android:name=".sync.GuardService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:process=":guard">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="long_running_background_sync" />
-        </service>
-
         <!-- AlarmManager 后台提醒广播接收器 -->
         <receiver
             android:name=".notification.AlertCheckReceiver"

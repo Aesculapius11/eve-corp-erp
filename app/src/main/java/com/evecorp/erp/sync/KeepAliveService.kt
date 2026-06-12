@@ -61,8 +61,6 @@ class KeepAliveService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createPersistentNotification())
-        // 启动守护进程（双进程保活）
-        GuardService.start(this)
         Log.d(TAG, "KeepAliveService started")
     }
 

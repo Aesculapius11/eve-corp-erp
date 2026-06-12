@@ -21,7 +21,6 @@ import androidx.navigation.compose.rememberNavController
 import com.evecorp.erp.auth.AuthStateManager
 import com.evecorp.erp.auth.EsiAuthManager
 import com.evecorp.erp.auth.TokenManager
-import com.evecorp.erp.sync.GuardService
 import com.evecorp.erp.sync.KeepAliveService
 import com.evecorp.erp.ui.navigation.Screen
 import com.evecorp.erp.ui.screens.dashboard.DashboardScreen
@@ -139,7 +138,6 @@ fun EveCorpApp(
                 SettingsScreen(
                     onLogout = {
                         KeepAliveService.stop(context)
-                        GuardService.stop(context)
                         navController.navigate(Screen.LOGIN.route) {
                             popUpTo(0) { inclusive = true }
                         }
