@@ -73,6 +73,10 @@ class IndustryRepository @Inject constructor(
     fun getActiveJobs(corpId: Long): Flow<List<IndustryJobEntity>> =
         industryJobDao.getActiveJobs(corpId)
 
+    /** 获取全部工业作业（包含已完成），按结束时间倒序 */
+    fun getAllJobs(corpId: Long): Flow<List<IndustryJobEntity>> =
+        industryJobDao.getAllJobs(corpId)
+
     fun getActiveJobsByActivity(corpId: Long, activity: String): Flow<List<IndustryJobEntity>> =
         industryJobDao.getActiveJobsByActivity(corpId, activity)
 
