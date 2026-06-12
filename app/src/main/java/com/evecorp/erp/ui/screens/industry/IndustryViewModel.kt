@@ -53,7 +53,7 @@ class IndustryViewModel @Inject constructor(
 
     val uiState: StateFlow<IndustryUiState> = combine(
         _selectedTab,
-        industryRepository.getRecentJobs(corpId),
+        industryRepository.getActiveJobs(corpId),
         _syncError,
         _hasSynced,
         _isRefreshing
@@ -84,9 +84,10 @@ class IndustryViewModel @Inject constructor(
             syncError = error
         )
     }.combine(_selectedStatus) { state, statusFilter ->
+        val now = System.currentTimeMillis()
         val filtered = when (statusFilter) {
-            "active" -> state.allJobsWithNames.filter { it.job.status == "active" }
-            "completed" -> state.allJobsWithNames.filter { it.job.status != "active" }
+            "active" -> state.allJobsWithNames.filter { it.job.endDate > now }
+            "completed" -> state.allJobsWithNames.filter { it.job.endDate <= now }
             else -> state.allJobsWithNames
         }
         // 按活动类型过滤
