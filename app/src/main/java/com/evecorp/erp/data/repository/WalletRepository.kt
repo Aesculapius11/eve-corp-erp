@@ -190,7 +190,7 @@ private fun WalletJournalDto.toEntityOrNull(corpId: Long): WalletJournalEntity? 
     return WalletJournalEntity(
         id = id,
         corporationId = corpId,
-        division = 1,
+        division = division ?: 1,
         date = dateMs,
         refType = refType,
         amount = amount,

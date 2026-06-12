@@ -12,6 +12,7 @@ data class WalletBalanceDto(
 @JsonClass(generateAdapter = true)
 data class WalletJournalDto(
     @Json(name = "id") val id: Long,
+    @Json(name = "division") val division: Int? = null,
     @Json(name = "date") val date: String,
     @Json(name = "ref_type") val refType: String,
     @Json(name = "amount") val amount: Double,

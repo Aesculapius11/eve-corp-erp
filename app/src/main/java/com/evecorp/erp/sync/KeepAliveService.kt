@@ -227,7 +227,8 @@ class KeepAliveService : Service() {
      * 检查市场订单变化
      */
     private suspend fun checkMarketAlerts() {
-        val orders = marketOrderDao.getAllActiveOrders().first()
+        val corpId = tokenManager.corporationId
+        val orders = marketOrderDao.getActiveOrders(corpId).first()
         val currentOrderIds = orders.map { it.orderId.toString() }.toSet()
         val currentHash = orders.joinToString("|") { "${it.orderId}:${it.volumeRemain}:${it.price}:${it.state}" }
             .let { AppUtils.md5(it) }

@@ -19,9 +19,6 @@ interface MarketOrderDao {
     @Query("SELECT * FROM market_order WHERE corporationId = :corpId AND state = 'active' ORDER BY issued DESC")
     fun getActiveOrders(corpId: Long): Flow<List<MarketOrderEntity>>
 
-    @Query("SELECT * FROM market_order WHERE state = 'active' ORDER BY issued DESC")
-    fun getAllActiveOrders(): Flow<List<MarketOrderEntity>>
-
     @Query("SELECT * FROM market_order WHERE corporationId = :corpId ORDER BY issued DESC")
     fun getAllOrders(corpId: Long): Flow<List<MarketOrderEntity>>
 

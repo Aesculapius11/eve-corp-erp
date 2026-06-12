@@ -143,7 +143,8 @@ class AlertCheckReceiver : BroadcastReceiver() {
     private suspend fun checkMarketAlerts() {
         val ctx = requireContext()
         val prefs = ctx.getSharedPreferences("alert_prefs", Context.MODE_PRIVATE)
-        val orders = marketOrderDao.getAllActiveOrders().first()
+        val corpId = tokenManager.corporationId
+        val orders = marketOrderDao.getActiveOrders(corpId).first()
         val currentOrderIds = orders.map { it.orderId.toString() }.toSet()
         val currentHash = orders.joinToString("|") { "${it.orderId}:${it.volumeRemain}:${it.price}:${it.state}" }
             .let { AppUtils.md5(it) }

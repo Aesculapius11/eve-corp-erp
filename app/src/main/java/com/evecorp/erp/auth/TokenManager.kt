@@ -59,6 +59,10 @@ class TokenManager @Inject constructor(
         prefs.edit().clear().apply()
     }
 
+    fun clearAccessToken() {
+        prefs.edit().remove(KEY_ACCESS_TOKEN).remove(KEY_TOKEN_EXPIRY).apply()
+    }
+
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"

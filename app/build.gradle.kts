@@ -20,7 +20,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "ESI_CLIENT_ID", "\"${project.findProperty("ESI_CLIENT_ID") ?: ""}\"")
-        buildConfigField("String", "ESI_CALLBACK_URL", "\"${project.findProperty("ESI_CALLBACK_URL") ?: "eveauth://callback"}\"")
+        buildConfigField("String", "ESI_CALLBACK_URL", "\"${project.findProperty("ESI_CALLBACK_URL") ?: "eveauthevecorperp://callback"}\"")
     }
 
     signingConfigs {

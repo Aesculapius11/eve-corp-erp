@@ -99,7 +99,7 @@ class AlertWorker @AssistedInject constructor(
      * 检查市场订单变化
      */
     private suspend fun checkMarketAlerts(corpId: Long) {
-        val orders = marketOrderDao.getAllActiveOrders().first()
+        val orders = marketOrderDao.getActiveOrders(corpId).first()
         val currentOrderIds = orders.map { it.orderId.toString() }.toSet()
 
         // 计算当前订单状态的哈希

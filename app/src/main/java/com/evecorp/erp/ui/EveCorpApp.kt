@@ -40,10 +40,21 @@ fun EveCorpApp(
 ) {
     val context = LocalContext.current
     val navController = rememberNavController()
-    val isLoggedIn = tokenManager.isLoggedIn()
+    val isLoggedIn by remember { derivedStateOf { tokenManager.isLoggedIn() } }
+    val tokenExpired by authStateManager.tokenExpired.collectAsState()
     val screens = Screen.entries.filter { it.showInNavBar }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    LaunchedEffect(tokenExpired) {
+        if (tokenExpired) {
+            KeepAliveService.stop(context)
+            navController.navigate(Screen.LOGIN.route) {
+                popUpTo(0) { inclusive = true }
+            }
+            authStateManager.reset()
+        }
+    }
 
     // 隐藏登录页的底部导航栏
     val showBottomBar = currentDestination?.route != Screen.LOGIN.route

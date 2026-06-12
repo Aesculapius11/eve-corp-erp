@@ -48,7 +48,7 @@ class MarketViewModel @Inject constructor(
 
     val uiState: StateFlow<MarketUiState> = combine(
         _selectedTab,
-        marketRepository.getAllActiveOrders(),
+        marketRepository.getAllActiveOrders(corpId),
         _syncError,
         _hasSynced,
         _isRefreshing
@@ -112,7 +112,7 @@ class MarketViewModel @Inject constructor(
                 _syncError.value = (_syncError.value?.plus("; ") ?: "") + "个人订单: ${e.message}"
             }
             // 解析物品名
-            val allOrders = marketRepository.getAllActiveOrders().first()
+            val allOrders = marketRepository.getAllActiveOrders(corpId).first()
             marketRepository.syncTypeNames(allOrders)
             _isRefreshing.value = false
             _hasSynced.value = true

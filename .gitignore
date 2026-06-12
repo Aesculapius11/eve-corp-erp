@@ -9,6 +9,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+.android-sdk/
 
 # Keystore
 *.jks
@@ -34,5 +35,3 @@ local.properties
 # Build logs
 build_log*.txt
 
-# Gradle wrapper bat (auto-generated)
-gradlew.bat

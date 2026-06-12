@@ -65,8 +65,8 @@ class WalletRepositoryTest {
         coEvery { walletJournalDao.getMaxId(123L) } returns 100L
         // Division 1 有两条记录，id=99 应被过滤
         val entries = listOf(
-            WalletJournalDto(id = 99, date = "2026-01-01T00:00:00Z", refType = "tax", amount = -10.0),
-            WalletJournalDto(id = 101, date = "2026-01-02T00:00:00Z", refType = "bounty", amount = 100.0)
+            WalletJournalDto(id = 99, division = 1, date = "2026-01-01T00:00:00Z", refType = "tax", amount = -10.0),
+            WalletJournalDto(id = 101, division = 1, date = "2026-01-02T00:00:00Z", refType = "bounty", amount = 100.0)
         )
         // 只 mock division 1，其余 division 返回 404 跳过
         coEvery { esiApi.getWalletJournal(123L, 1, any()) } returns Response.success(entries)
@@ -79,6 +79,31 @@ class WalletRepositoryTest {
         assertTrue(result.isSuccess)
         coVerify {
             walletJournalDao.insertAll(match { it.size == 1 && it[0].id == 101L })
+        }
+    }
+
+    @Test
+    fun `syncJournal preserves division from dto`() = runTest {
+        coEvery { walletJournalDao.getMaxId(123L) } returns null
+        coEvery { esiApi.getWalletJournal(123L, 1, any()) } returns Response.success(
+            listOf(
+                WalletJournalDto(
+                    id = 101,
+                    division = 4,
+                    date = "2026-01-02T00:00:00Z",
+                    refType = "bounty",
+                    amount = 100.0
+                )
+            )
+        )
+        for (div in 2..7) {
+            coEvery { esiApi.getWalletJournal(123L, div, any()) } returns Response.error(404, okhttp3.ResponseBody.create(null, ""))
+        }
+
+        repository.syncJournal(123L)
+
+        coVerify {
+            walletJournalDao.insertAll(match { it.single().division == 4 })
         }
     }
 

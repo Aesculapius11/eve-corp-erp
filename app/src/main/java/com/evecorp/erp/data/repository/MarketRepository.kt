@@ -28,8 +28,8 @@ class MarketRepository @Inject constructor(
     fun getActiveBuyOrders(corpId: Long): Flow<List<MarketOrderEntity>> =
         marketOrderDao.getActiveBuyOrders(corpId)
 
-    fun getAllActiveOrders(): Flow<List<MarketOrderEntity>> =
-        marketOrderDao.getAllActiveOrders()
+    fun getAllActiveOrders(corpId: Long): Flow<List<MarketOrderEntity>> =
+        marketOrderDao.getActiveOrders(corpId)
 
     suspend fun getTypeName(typeId: Long): String =
         typeNameCacheDao.getName(typeId) ?: "Unknown ($typeId)"
