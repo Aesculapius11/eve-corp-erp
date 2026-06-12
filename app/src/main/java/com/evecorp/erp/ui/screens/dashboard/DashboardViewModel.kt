@@ -11,17 +11,27 @@ import com.evecorp.erp.data.local.entity.WalletBalanceEntity
 import com.evecorp.erp.data.local.entity.WalletJournalEntity
 import com.evecorp.erp.data.repository.IndustryRepository
 import com.evecorp.erp.data.repository.WalletRepository
+import com.evecorp.erp.sync.EsiRefreshPolicy
+import com.evecorp.erp.sync.RefreshDomain
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalCoroutinesApi::class)
 data class SystemSearchResult(val id: Long, val name: String)
 
-/** 热门星系列表（ID, 英文名, 中文昵称） */
 private val POPULAR_SYSTEMS = listOf(
     Triple(30000142L, "Jita", "吉他"),
     Triple(30002187L, "Amarr", "艾玛"),
@@ -60,7 +70,7 @@ private val POPULAR_SYSTEMS = listOf(
     Triple(30000171L, "Doore", "多尔"),
     Triple(30000172L, "Ekura", "埃库拉"),
     Triple(30000173L, "Fildar", "菲尔达"),
-    Triple(30000174L, "Goram", "戈拉姆"),
+    Triple(30000174L, "Goram", "戈拉姆")
 )
 
 data class DashboardUiState(
@@ -73,9 +83,11 @@ data class DashboardUiState(
     val systemSearchResults: List<SystemSearchResult> = emptyList(),
     val isSearchingSystem: Boolean = false,
     val isRefreshing: Boolean = false,
-    val nextSyncCountdown: String = ""
+    val nextSyncCountdown: String = "",
+    val refreshNotice: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val tokenManager: TokenManager,
@@ -92,20 +104,21 @@ class DashboardViewModel @Inject constructor(
     private val _isSearchingSystem = MutableStateFlow(false)
     private val _hasSynced = MutableStateFlow(false)
     private val _nextSyncCountdown = MutableStateFlow("")
-    private var countdownJob: kotlinx.coroutines.Job? = null
+    private val _refreshNotice = MutableStateFlow<String?>(null)
+    private var countdownJob: Job? = null
+    private var blockedManualRefreshAttempts = 0
 
-    // 财务数据流（balance + journal + history + costIndex）
     private val financialData: StateFlow<DashboardUiState> = combine(
-        walletRepository.getBalance(corpId).map { it?.let { UiState.Success(it) } ?: UiState.Loading },
+        walletRepository.getBalance(corpId).map { it?.let { balance -> UiState.Success(balance) } ?: UiState.Loading },
         walletRepository.getRecentJournal(corpId).map { UiState.Success(it) },
         walletRepository.getBalanceHistory(corpId).map { UiState.Success(it) },
         _selectedSystemId.flatMapLatest { systemId ->
-            industryRepository.getCostIndex(systemId).map { it?.let { UiState.Success(it) } ?: UiState.Loading }
+            industryRepository.getCostIndex(systemId).map { it?.let { item -> UiState.Success(item) } ?: UiState.Loading }
         },
         _hasSynced
     ) { balance, journal, history, costIndex, hasSynced ->
         if (!hasSynced) {
-            DashboardUiState() // 全部 Loading
+            DashboardUiState()
         } else {
             DashboardUiState(
                 balance = balance,
@@ -121,68 +134,25 @@ class DashboardViewModel @Inject constructor(
         _isRefreshing,
         _selectedSystemId,
         _selectedSystemName,
-        combine(_systemSearchResults, _isSearchingSystem) { results, searching ->
-            results to searching
-        }
-    ) { data, refreshing, systemId, systemName, (searchResults, searching) ->
+        combine(_systemSearchResults, _isSearchingSystem) { results, searching -> results to searching }
+    ) { data, refreshing, systemId, systemName, searchState ->
         data.copy(
             isRefreshing = refreshing,
             selectedSystemId = systemId,
             selectedSystemName = systemName,
-            systemSearchResults = searchResults,
-            isSearchingSystem = searching
+            systemSearchResults = searchState.first,
+            isSearchingSystem = searchState.second
         )
+    }.combine(_refreshNotice) { state, refreshNotice ->
+        state.copy(refreshNotice = refreshNotice)
     }.combine(_nextSyncCountdown) { state, countdown ->
         state.copy(nextSyncCountdown = countdown)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
     init {
-        refresh()
-        // 监听同步间隔变化，立即重启倒计时
         viewModelScope.launch {
-            dashboardPreferences.syncIntervalFlow.collect {
-                startCountdown()
-            }
-        }
-    }
-
-    private fun startCountdown() {
-        countdownJob?.cancel()
-        countdownJob = viewModelScope.launch {
-            var nextSyncTime = System.currentTimeMillis() + dashboardPreferences.getSyncIntervalMinutes() * 60_000L
-
-            while (true) {
-                kotlinx.coroutines.delay(1000)
-                val intervalMs = dashboardPreferences.getSyncIntervalMinutes() * 60_000L
-                val remaining = nextSyncTime - System.currentTimeMillis()
-
-                if (remaining <= 0) {
-                    refreshInternal()
-                    nextSyncTime = System.currentTimeMillis() + intervalMs
-                }
-
-                val totalSec = ((nextSyncTime - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
-                val min = totalSec / 60
-                val sec = totalSec % 60
-                _nextSyncCountdown.value = if (min > 0) "${min}分${sec}秒后刷新" else "${sec}秒后刷新"
-            }
-        }
-    }
-
-    private suspend fun refreshInternal() {
-        _isRefreshing.value = true
-        walletRepository.syncBalance(corpId)
-        kotlinx.coroutines.delay(100)
-        _hasSynced.value = true
-        _isRefreshing.value = false
-        kotlinx.coroutines.coroutineScope {
-            launch {
-                walletRepository.syncJournal(corpId)
-                walletRepository.reconstructHistoryFromJournal(corpId)
-            }
-            launch {
-                industryRepository.syncCostIndices(listOf(_selectedSystemId.value))
-            }
+            ensureInitialDataLoaded()
+            startCountdown()
         }
     }
 
@@ -198,23 +168,23 @@ class DashboardViewModel @Inject constructor(
 
     fun searchSystem(query: String) {
         if (query.isBlank()) {
-            // 显示热门星系
             _systemSearchResults.value = POPULAR_SYSTEMS.map {
                 SystemSearchResult(it.first, "${it.second} (${it.third})")
             }
             return
         }
+
         _isSearchingSystem.value = true
         val q = query.lowercase()
-        // 本地模糊搜索（中英文）
         val localResults = POPULAR_SYSTEMS.filter { (_, en, cn) ->
             en.lowercase().contains(q) || cn.contains(query)
-        }.map { SystemSearchResult(it.first, "${it.second} (${it.third})") }
+        }.map {
+            SystemSearchResult(it.first, "${it.second} (${it.third})")
+        }
 
         _systemSearchResults.value = localResults
         _isSearchingSystem.value = false
 
-        // 如果本地没有匹配，尝试 ESI 搜索（英文名）
         if (localResults.isEmpty() && query.length >= 3) {
             viewModelScope.launch {
                 industryRepository.searchSystems(query)
@@ -232,9 +202,93 @@ class DashboardViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            refreshInternal()
-            // 手动刷新后立即重置倒计时
-            startCountdown()
+            if (!canRefreshManually()) return@launch
+            performRefresh()
+        }
+    }
+
+    fun clearRefreshNotice() {
+        _refreshNotice.value = null
+    }
+
+    private suspend fun ensureInitialDataLoaded() {
+        if (_hasSynced.value) return
+        val lastRefreshAt = dashboardPreferences.getLastRefreshAt(RefreshDomain.DASHBOARD)
+        if (lastRefreshAt <= 0L) {
+            performRefresh()
+        } else {
+            _hasSynced.value = true
+        }
+    }
+
+    private fun startCountdown() {
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            while (isActive) {
+                val lastRefreshAt = dashboardPreferences.getLastRefreshAt(RefreshDomain.DASHBOARD)
+                if (lastRefreshAt <= 0L) {
+                    _nextSyncCountdown.value = ""
+                    delay(1000)
+                    continue
+                }
+
+                val remaining = EsiRefreshPolicy.automaticRemainingMillis(
+                    lastRefreshAt = lastRefreshAt,
+                    configuredIntervalMinutes = dashboardPreferences.getSyncIntervalMinutes()
+                )
+                if (remaining <= 0L && !_isRefreshing.value) {
+                    performRefresh()
+                    continue
+                }
+
+                _nextSyncCountdown.value = "${EsiRefreshPolicy.formatRemaining(remaining)}后刷新"
+                delay(1000)
+            }
+        }
+    }
+
+    private fun canRefreshManually(): Boolean {
+        val remaining = EsiRefreshPolicy.manualRemainingMillis(
+            dashboardPreferences.getLastRefreshAt(RefreshDomain.DASHBOARD)
+        )
+        if (remaining <= 0L) {
+            blockedManualRefreshAttempts = 0
+            _refreshNotice.value = null
+            return true
+        }
+
+        blockedManualRefreshAttempts += 1
+        _refreshNotice.value = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
+            "刷新过于频繁，ESI接口有5分钟缓存，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
+        } else {
+            "刚刷新过，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
+        }
+        return false
+    }
+
+    private suspend fun performRefresh() {
+        _isRefreshing.value = true
+        try {
+            walletRepository.syncBalance(corpId)
+            delay(100)
+            _hasSynced.value = true
+            coroutineScope {
+                launch {
+                    walletRepository.syncJournal(corpId)
+                    walletRepository.reconstructHistoryFromJournal(corpId)
+                }
+                launch {
+                    industryRepository.syncCostIndices(listOf(_selectedSystemId.value))
+                }
+            }
+            dashboardPreferences.setLastRefreshAt(
+                RefreshDomain.DASHBOARD,
+                System.currentTimeMillis()
+            )
+            blockedManualRefreshAttempts = 0
+            _refreshNotice.value = null
+        } finally {
+            _isRefreshing.value = false
         }
     }
 }

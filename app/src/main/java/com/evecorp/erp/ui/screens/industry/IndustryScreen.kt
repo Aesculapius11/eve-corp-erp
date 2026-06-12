@@ -36,9 +36,18 @@ fun IndustryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val waterfallTrigger = rememberWaterfallTrigger()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.refreshNotice) {
+        uiState.refreshNotice?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearRefreshNotice()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -52,7 +61,9 @@ fun IndustryScreen(
                     FilledIconButton(
                         onClick = {
                             viewModel.refresh()
-                            waterfallTrigger.triggerWaterfall()
+                            if (!uiState.isRefreshing) {
+                                waterfallTrigger.triggerWaterfall()
+                            }
                         },
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,

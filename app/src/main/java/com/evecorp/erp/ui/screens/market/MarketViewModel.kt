@@ -3,13 +3,21 @@ package com.evecorp.erp.ui.screens.market
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.evecorp.erp.auth.TokenManager
+import com.evecorp.erp.data.local.DashboardPreferences
 import com.evecorp.erp.data.local.entity.MarketOrderEntity
 import com.evecorp.erp.data.repository.MarketRepository
+import com.evecorp.erp.sync.EsiRefreshPolicy
+import com.evecorp.erp.sync.RefreshDomain
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class MarketOrderWith(
     val order: MarketOrderEntity,
@@ -21,11 +29,12 @@ data class MarketUiState(
     val sellOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
     val buyOrders: UiState<List<MarketOrderWith>> = UiState.Loading,
     val selectedTab: MarketTab = MarketTab.SELL,
-    val selectedIssuer: String? = null, // null=全部
+    val selectedIssuer: String? = null,
     val availableIssuers: List<String> = emptyList(),
-    val allOrdersWithNames: List<MarketOrderWith> = emptyList(), // 内部用，不直接显示
+    val allOrdersWithNames: List<MarketOrderWith> = emptyList(),
     val isRefreshing: Boolean = false,
-    val syncError: String? = null
+    val syncError: String? = null,
+    val refreshNotice: String? = null
 )
 
 enum class MarketTab(val label: String) {
@@ -36,7 +45,8 @@ enum class MarketTab(val label: String) {
 @HiltViewModel
 class MarketViewModel @Inject constructor(
     private val tokenManager: TokenManager,
-    private val marketRepository: MarketRepository
+    private val marketRepository: MarketRepository,
+    private val dashboardPreferences: DashboardPreferences
 ) : ViewModel() {
 
     private val corpId: Long get() = tokenManager.corporationId
@@ -45,6 +55,8 @@ class MarketViewModel @Inject constructor(
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
+    private val _refreshNotice = MutableStateFlow<String?>(null)
+    private var blockedManualRefreshAttempts = 0
 
     val uiState: StateFlow<MarketUiState> = combine(
         _selectedTab,
@@ -62,11 +74,12 @@ class MarketViewModel @Inject constructor(
                 syncError = error
             )
         }
+
         val withNames = allOrders.map { order ->
             MarketOrderWith(
                 order = order,
                 typeName = marketRepository.getTypeName(order.typeId),
-                issuerName = order.issuedBy?.let { marketRepository.getTypeName(it) } ?: "—"
+                issuerName = order.issuedBy?.let { marketRepository.getTypeName(it) } ?: "-"
             )
         }
         val issuers = withNames.map { it.issuerName }.distinct().sorted()
@@ -80,18 +93,29 @@ class MarketViewModel @Inject constructor(
     }.combine(_selectedIssuer) { state, issuerFilter ->
         val filtered = if (issuerFilter != null) {
             state.allOrdersWithNames.filter { it.issuerName == issuerFilter }
-        } else state.allOrdersWithNames
+        } else {
+            state.allOrdersWithNames
+        }
 
-        val sellOrders = filtered.filter { !it.order.isBuyOrder }
-        val buyOrders = filtered.filter { it.order.isBuyOrder }
         state.copy(
-            sellOrders = UiState.Success(sellOrders),
-            buyOrders = UiState.Success(buyOrders),
+            sellOrders = UiState.Success(filtered.filter { !it.order.isBuyOrder }),
+            buyOrders = UiState.Success(filtered.filter { it.order.isBuyOrder }),
             selectedIssuer = issuerFilter
         )
+    }.combine(_refreshNotice) { state, refreshNotice ->
+        state.copy(refreshNotice = refreshNotice)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MarketUiState())
 
-    init { refresh() }
+    init {
+        viewModelScope.launch {
+            val lastRefreshAt = dashboardPreferences.getLastRefreshAt(RefreshDomain.MARKET)
+            if (lastRefreshAt <= 0L) {
+                performRefresh()
+            } else {
+                _hasSynced.value = true
+            }
+        }
+    }
 
     fun selectTab(tab: MarketTab) {
         _selectedTab.value = tab
@@ -103,19 +127,58 @@ class MarketViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            _syncError.value = null
-            _isRefreshing.value = true
+            if (!canRefreshManually()) return@launch
+            performRefresh()
+        }
+    }
+
+    fun clearRefreshNotice() {
+        _refreshNotice.value = null
+    }
+
+    private fun canRefreshManually(): Boolean {
+        val remaining = EsiRefreshPolicy.manualRemainingMillis(
+            dashboardPreferences.getLastRefreshAt(RefreshDomain.MARKET)
+        )
+        if (remaining <= 0L) {
+            blockedManualRefreshAttempts = 0
+            _refreshNotice.value = null
+            return true
+        }
+
+        blockedManualRefreshAttempts += 1
+        _refreshNotice.value = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
+            "市场数据刷新过于频繁，ESI接口有5分钟缓存，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
+        } else {
+            "市场数据刚刷新过，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
+        }
+        return false
+    }
+
+    private suspend fun performRefresh() {
+        _syncError.value = null
+        _isRefreshing.value = true
+        try {
             marketRepository.syncOrders(corpId).onFailure { e ->
                 _syncError.value = "公司订单: ${e.message}"
             }
             marketRepository.syncCharacterOrders(tokenManager.characterId).onFailure { e ->
                 _syncError.value = (_syncError.value?.plus("; ") ?: "") + "个人订单: ${e.message}"
             }
-            // 解析物品名
             val allOrders = marketRepository.getAllActiveOrders(corpId).first()
             marketRepository.syncTypeNames(allOrders)
-            _isRefreshing.value = false
             _hasSynced.value = true
+
+            if (_syncError.value == null) {
+                dashboardPreferences.setLastRefreshAt(
+                    RefreshDomain.MARKET,
+                    System.currentTimeMillis()
+                )
+                blockedManualRefreshAttempts = 0
+                _refreshNotice.value = null
+            }
+        } finally {
+            _isRefreshing.value = false
         }
     }
 }
