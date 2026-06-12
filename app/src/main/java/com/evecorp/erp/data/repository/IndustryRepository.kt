@@ -18,6 +18,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "IndustryRepo"
+private const val RECENT_WINDOW_MS = 30L * 24 * 60 * 60 * 1000 // 30 天
 
 @Singleton
 class IndustryRepository @Inject constructor(
@@ -73,9 +74,9 @@ class IndustryRepository @Inject constructor(
     fun getActiveJobs(corpId: Long): Flow<List<IndustryJobEntity>> =
         industryJobDao.getActiveJobs(corpId)
 
-    /** 获取全部工业作业（包含已完成），按结束时间倒序 */
-    fun getAllJobs(corpId: Long): Flow<List<IndustryJobEntity>> =
-        industryJobDao.getAllJobs(corpId)
+    /** 活跃作业 + 近期已完成作业（30天内） */
+    fun getRecentJobs(corpId: Long): Flow<List<IndustryJobEntity>> =
+        industryJobDao.getRecentJobs(corpId, System.currentTimeMillis() - RECENT_WINDOW_MS)
 
     fun getActiveJobsByActivity(corpId: Long, activity: String): Flow<List<IndustryJobEntity>> =
         industryJobDao.getActiveJobsByActivity(corpId, activity)

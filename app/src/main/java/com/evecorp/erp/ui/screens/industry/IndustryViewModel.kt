@@ -53,7 +53,7 @@ class IndustryViewModel @Inject constructor(
 
     val uiState: StateFlow<IndustryUiState> = combine(
         _selectedTab,
-        industryRepository.getAllJobs(corpId),
+        industryRepository.getRecentJobs(corpId),
         _syncError,
         _hasSynced,
         _isRefreshing
