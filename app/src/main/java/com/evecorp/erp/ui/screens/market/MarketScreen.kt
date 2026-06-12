@@ -39,10 +39,9 @@ fun MarketScreen(
     val waterfallTrigger = rememberWaterfallTrigger()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.refreshNotice) {
-        uiState.refreshNotice?.let { message ->
+    LaunchedEffect(viewModel) {
+        viewModel.refreshNoticeEvents.collect { message ->
             snackbarHostState.showSnackbar(message)
-            viewModel.clearRefreshNotice()
         }
     }
 

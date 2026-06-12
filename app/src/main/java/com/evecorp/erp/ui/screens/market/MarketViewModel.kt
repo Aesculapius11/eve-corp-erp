@@ -11,9 +11,11 @@ import com.evecorp.erp.sync.RefreshDomain
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -33,8 +35,7 @@ data class MarketUiState(
     val availableIssuers: List<String> = emptyList(),
     val allOrdersWithNames: List<MarketOrderWith> = emptyList(),
     val isRefreshing: Boolean = false,
-    val syncError: String? = null,
-    val refreshNotice: String? = null
+    val syncError: String? = null
 )
 
 enum class MarketTab(val label: String) {
@@ -55,7 +56,8 @@ class MarketViewModel @Inject constructor(
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
-    private val _refreshNotice = MutableStateFlow<String?>(null)
+    private val _refreshNoticeEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val refreshNoticeEvents = _refreshNoticeEvents.asSharedFlow()
     private var blockedManualRefreshAttempts = 0
 
     val uiState: StateFlow<MarketUiState> = combine(
@@ -102,8 +104,6 @@ class MarketViewModel @Inject constructor(
             buyOrders = UiState.Success(filtered.filter { it.order.isBuyOrder }),
             selectedIssuer = issuerFilter
         )
-    }.combine(_refreshNotice) { state, refreshNotice ->
-        state.copy(refreshNotice = refreshNotice)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MarketUiState())
 
     init {
@@ -132,26 +132,22 @@ class MarketViewModel @Inject constructor(
         }
     }
 
-    fun clearRefreshNotice() {
-        _refreshNotice.value = null
-    }
-
     private fun canRefreshManually(): Boolean {
         val remaining = EsiRefreshPolicy.manualRemainingMillis(
             dashboardPreferences.getLastRefreshAt(RefreshDomain.MARKET)
         )
         if (remaining <= 0L) {
             blockedManualRefreshAttempts = 0
-            _refreshNotice.value = null
             return true
         }
 
         blockedManualRefreshAttempts += 1
-        _refreshNotice.value = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
+        val message = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
             "市场数据刷新过于频繁，ESI接口有5分钟缓存，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         } else {
             "市场数据刚刷新过，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         }
+        _refreshNoticeEvents.tryEmit(message)
         return false
     }
 
@@ -175,7 +171,6 @@ class MarketViewModel @Inject constructor(
                     System.currentTimeMillis()
                 )
                 blockedManualRefreshAttempts = 0
-                _refreshNotice.value = null
             }
         } finally {
             _isRefreshing.value = false

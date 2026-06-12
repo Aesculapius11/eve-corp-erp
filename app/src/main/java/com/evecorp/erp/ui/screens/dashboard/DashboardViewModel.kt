@@ -20,9 +20,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -83,8 +85,7 @@ data class DashboardUiState(
     val systemSearchResults: List<SystemSearchResult> = emptyList(),
     val isSearchingSystem: Boolean = false,
     val isRefreshing: Boolean = false,
-    val nextSyncCountdown: String = "",
-    val refreshNotice: String? = null
+    val nextSyncCountdown: String = ""
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -104,7 +105,8 @@ class DashboardViewModel @Inject constructor(
     private val _isSearchingSystem = MutableStateFlow(false)
     private val _hasSynced = MutableStateFlow(false)
     private val _nextSyncCountdown = MutableStateFlow("")
-    private val _refreshNotice = MutableStateFlow<String?>(null)
+    private val _refreshNoticeEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val refreshNoticeEvents = _refreshNoticeEvents.asSharedFlow()
     private var countdownJob: Job? = null
     private var blockedManualRefreshAttempts = 0
 
@@ -143,8 +145,6 @@ class DashboardViewModel @Inject constructor(
             systemSearchResults = searchState.first,
             isSearchingSystem = searchState.second
         )
-    }.combine(_refreshNotice) { state, refreshNotice ->
-        state.copy(refreshNotice = refreshNotice)
     }.combine(_nextSyncCountdown) { state, countdown ->
         state.copy(nextSyncCountdown = countdown)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
@@ -207,10 +207,6 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun clearRefreshNotice() {
-        _refreshNotice.value = null
-    }
-
     private suspend fun ensureInitialDataLoaded() {
         if (_hasSynced.value) return
         val lastRefreshAt = dashboardPreferences.getLastRefreshAt(RefreshDomain.DASHBOARD)
@@ -253,16 +249,16 @@ class DashboardViewModel @Inject constructor(
         )
         if (remaining <= 0L) {
             blockedManualRefreshAttempts = 0
-            _refreshNotice.value = null
             return true
         }
 
         blockedManualRefreshAttempts += 1
-        _refreshNotice.value = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
+        val message = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
             "刷新过于频繁，ESI接口有5分钟缓存，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         } else {
             "刚刷新过，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         }
+        _refreshNoticeEvents.tryEmit(message)
         return false
     }
 
@@ -286,7 +282,6 @@ class DashboardViewModel @Inject constructor(
                 System.currentTimeMillis()
             )
             blockedManualRefreshAttempts = 0
-            _refreshNotice.value = null
         } finally {
             _isRefreshing.value = false
         }

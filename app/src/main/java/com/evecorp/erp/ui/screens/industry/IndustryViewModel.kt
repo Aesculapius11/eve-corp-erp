@@ -11,9 +11,11 @@ import com.evecorp.erp.sync.RefreshDomain
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,8 +35,7 @@ data class IndustryUiState(
     val availableInstallers: List<String> = emptyList(),
     val allJobsWithNames: List<IndustryJobWith> = emptyList(),
     val isRefreshing: Boolean = false,
-    val syncError: String? = null,
-    val refreshNotice: String? = null
+    val syncError: String? = null
 )
 
 enum class IndustryTab(val label: String, val activities: List<String>?) {
@@ -59,7 +60,8 @@ class IndustryViewModel @Inject constructor(
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
-    private val _refreshNotice = MutableStateFlow<String?>(null)
+    private val _refreshNoticeEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val refreshNoticeEvents = _refreshNoticeEvents.asSharedFlow()
     private var blockedManualRefreshAttempts = 0
 
     val uiState: StateFlow<IndustryUiState> = combine(
@@ -119,8 +121,6 @@ class IndustryViewModel @Inject constructor(
             jobs = UiState.Success(finalFiltered),
             selectedInstaller = installerFilter
         )
-    }.combine(_refreshNotice) { state, refreshNotice ->
-        state.copy(refreshNotice = refreshNotice)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), IndustryUiState())
 
     init {
@@ -153,26 +153,22 @@ class IndustryViewModel @Inject constructor(
         }
     }
 
-    fun clearRefreshNotice() {
-        _refreshNotice.value = null
-    }
-
     private fun canRefreshManually(): Boolean {
         val remaining = EsiRefreshPolicy.manualRemainingMillis(
             dashboardPreferences.getLastRefreshAt(RefreshDomain.INDUSTRY)
         )
         if (remaining <= 0L) {
             blockedManualRefreshAttempts = 0
-            _refreshNotice.value = null
             return true
         }
 
         blockedManualRefreshAttempts += 1
-        _refreshNotice.value = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
+        val message = if (blockedManualRefreshAttempts >= EsiRefreshPolicy.EXCESSIVE_TAP_THRESHOLD) {
             "工业数据刷新过于频繁，ESI接口有5分钟缓存，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         } else {
             "工业数据刚刷新过，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         }
+        _refreshNoticeEvents.tryEmit(message)
         return false
     }
 
@@ -188,7 +184,6 @@ class IndustryViewModel @Inject constructor(
                     System.currentTimeMillis()
                 )
                 blockedManualRefreshAttempts = 0
-                _refreshNotice.value = null
             }.onFailure { e ->
                 _syncError.value = e.message ?: "同步失败"
             }
