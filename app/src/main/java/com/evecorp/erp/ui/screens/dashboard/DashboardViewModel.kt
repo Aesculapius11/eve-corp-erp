@@ -13,6 +13,7 @@ import com.evecorp.erp.data.repository.IndustryRepository
 import com.evecorp.erp.data.repository.WalletRepository
 import com.evecorp.erp.sync.EsiRefreshPolicy
 import com.evecorp.erp.sync.RefreshDomain
+import com.evecorp.erp.ui.RefreshNotice
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -20,11 +21,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -85,7 +84,8 @@ data class DashboardUiState(
     val systemSearchResults: List<SystemSearchResult> = emptyList(),
     val isSearchingSystem: Boolean = false,
     val isRefreshing: Boolean = false,
-    val nextSyncCountdown: String = ""
+    val nextSyncCountdown: String = "",
+    val refreshNotice: RefreshNotice? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -105,10 +105,10 @@ class DashboardViewModel @Inject constructor(
     private val _isSearchingSystem = MutableStateFlow(false)
     private val _hasSynced = MutableStateFlow(false)
     private val _nextSyncCountdown = MutableStateFlow("")
-    private val _refreshNoticeEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val refreshNoticeEvents = _refreshNoticeEvents.asSharedFlow()
+    private val _refreshNotice = MutableStateFlow<RefreshNotice?>(null)
     private var countdownJob: Job? = null
     private var blockedManualRefreshAttempts = 0
+    private var refreshNoticeId = 0L
 
     private val financialData: StateFlow<DashboardUiState> = combine(
         walletRepository.getBalance(corpId).map { it?.let { balance -> UiState.Success(balance) } ?: UiState.Loading },
@@ -145,6 +145,8 @@ class DashboardViewModel @Inject constructor(
             systemSearchResults = searchState.first,
             isSearchingSystem = searchState.second
         )
+    }.combine(_refreshNotice) { state, refreshNotice ->
+        state.copy(refreshNotice = refreshNotice)
     }.combine(_nextSyncCountdown) { state, countdown ->
         state.copy(nextSyncCountdown = countdown)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
@@ -207,6 +209,12 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun clearRefreshNotice(id: Long) {
+        if (_refreshNotice.value?.id == id) {
+            _refreshNotice.value = null
+        }
+    }
+
     private suspend fun ensureInitialDataLoaded() {
         if (_hasSynced.value) return
         val lastRefreshAt = dashboardPreferences.getLastRefreshAt(RefreshDomain.DASHBOARD)
@@ -258,7 +266,8 @@ class DashboardViewModel @Inject constructor(
         } else {
             "刚刷新过，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         }
-        _refreshNoticeEvents.tryEmit(message)
+        refreshNoticeId += 1
+        _refreshNotice.value = RefreshNotice(refreshNoticeId, message)
         return false
     }
 
@@ -282,6 +291,7 @@ class DashboardViewModel @Inject constructor(
                 System.currentTimeMillis()
             )
             blockedManualRefreshAttempts = 0
+            _refreshNotice.value = null
         } finally {
             _isRefreshing.value = false
         }

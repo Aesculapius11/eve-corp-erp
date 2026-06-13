@@ -8,14 +8,13 @@ import com.evecorp.erp.data.local.entity.IndustryJobEntity
 import com.evecorp.erp.data.repository.IndustryRepository
 import com.evecorp.erp.sync.EsiRefreshPolicy
 import com.evecorp.erp.sync.RefreshDomain
+import com.evecorp.erp.ui.RefreshNotice
 import com.evecorp.erp.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -35,7 +34,8 @@ data class IndustryUiState(
     val availableInstallers: List<String> = emptyList(),
     val allJobsWithNames: List<IndustryJobWith> = emptyList(),
     val isRefreshing: Boolean = false,
-    val syncError: String? = null
+    val syncError: String? = null,
+    val refreshNotice: RefreshNotice? = null
 )
 
 enum class IndustryTab(val label: String, val activities: List<String>?) {
@@ -60,9 +60,9 @@ class IndustryViewModel @Inject constructor(
     private val _syncError = MutableStateFlow<String?>(null)
     private val _hasSynced = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
-    private val _refreshNoticeEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val refreshNoticeEvents = _refreshNoticeEvents.asSharedFlow()
+    private val _refreshNotice = MutableStateFlow<RefreshNotice?>(null)
     private var blockedManualRefreshAttempts = 0
+    private var refreshNoticeId = 0L
 
     val uiState: StateFlow<IndustryUiState> = combine(
         _selectedTab,
@@ -121,6 +121,8 @@ class IndustryViewModel @Inject constructor(
             jobs = UiState.Success(finalFiltered),
             selectedInstaller = installerFilter
         )
+    }.combine(_refreshNotice) { state, refreshNotice ->
+        state.copy(refreshNotice = refreshNotice)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), IndustryUiState())
 
     init {
@@ -153,6 +155,12 @@ class IndustryViewModel @Inject constructor(
         }
     }
 
+    fun clearRefreshNotice(id: Long) {
+        if (_refreshNotice.value?.id == id) {
+            _refreshNotice.value = null
+        }
+    }
+
     private fun canRefreshManually(): Boolean {
         val remaining = EsiRefreshPolicy.manualRemainingMillis(
             dashboardPreferences.getLastRefreshAt(RefreshDomain.INDUSTRY)
@@ -168,7 +176,8 @@ class IndustryViewModel @Inject constructor(
         } else {
             "工业数据刚刷新过，请在${EsiRefreshPolicy.formatRemaining(remaining)}后再试"
         }
-        _refreshNoticeEvents.tryEmit(message)
+        refreshNoticeId += 1
+        _refreshNotice.value = RefreshNotice(refreshNoticeId, message)
         return false
     }
 
@@ -184,6 +193,7 @@ class IndustryViewModel @Inject constructor(
                     System.currentTimeMillis()
                 )
                 blockedManualRefreshAttempts = 0
+                _refreshNotice.value = null
             }.onFailure { e ->
                 _syncError.value = e.message ?: "同步失败"
             }

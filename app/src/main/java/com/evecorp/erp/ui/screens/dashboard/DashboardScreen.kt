@@ -43,10 +43,10 @@ fun DashboardScreen(
     val waterfallTrigger = rememberWaterfallTrigger()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(viewModel) {
-        viewModel.refreshNoticeEvents.collect { message ->
-            snackbarHostState.showSnackbar(message)
-        }
+    LaunchedEffect(uiState.refreshNotice?.id) {
+        val notice = uiState.refreshNotice ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(notice.message)
+        viewModel.clearRefreshNotice(notice.id)
     }
 
     Scaffold(
