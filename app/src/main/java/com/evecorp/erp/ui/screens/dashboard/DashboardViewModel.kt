@@ -118,12 +118,12 @@ class DashboardViewModel @Inject constructor(
             industryRepository.getCostIndex(systemId).map { it?.let { item -> UiState.Success(item) } ?: UiState.Loading }
         },
         _hasSynced
-    ) { balance, journal, history, costIndex, hasSynced ->
+    ) { rawBalance, journal, history, costIndex, hasSynced ->
         if (!hasSynced) {
             DashboardUiState()
         } else {
             DashboardUiState(
-                balance = balance,
+                balance = resolveDashboardBalance(corpId, rawBalance, history),
                 journal = journal,
                 costIndex = costIndex,
                 balanceHistory = history
@@ -295,5 +295,30 @@ class DashboardViewModel @Inject constructor(
         } finally {
             _isRefreshing.value = false
         }
+    }
+}
+
+internal fun resolveDashboardBalance(
+    corpId: Long,
+    rawBalance: UiState<WalletBalanceEntity>,
+    history: UiState<List<BalanceSnapshotEntity>>
+): UiState<WalletBalanceEntity> {
+    val latestSnapshot = (history as? UiState.Success)
+        ?.data
+        ?.lastOrNull()
+
+    return when {
+        latestSnapshot != null -> UiState.Success(
+            WalletBalanceEntity(
+                corporationId = corpId,
+                balance = latestSnapshot.balance,
+                lastUpdated = latestSnapshot.timestamp
+            )
+        )
+        rawBalance is UiState.Success -> rawBalance
+        history is UiState.Loading || rawBalance is UiState.Loading -> UiState.Loading
+        rawBalance is UiState.Error -> rawBalance
+        history is UiState.Error -> history
+        else -> UiState.Loading
     }
 }

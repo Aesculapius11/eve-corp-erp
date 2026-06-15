@@ -21,6 +21,7 @@ import com.evecorp.erp.ui.theme.Sky600
 import com.evecorp.erp.ui.theme.Sakura300
 import com.evecorp.erp.ui.theme.Sakura400
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 /**
@@ -107,7 +108,7 @@ fun BalanceChart(
     }
 
     // 数据处理
-    val today = LocalDate.now()
+    val today = LocalDate.now(ZoneOffset.UTC)
     val dateRange = (29 downTo 0).map { today.minusDays(it.toLong()) }
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
