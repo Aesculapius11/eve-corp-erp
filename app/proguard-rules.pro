@@ -43,5 +43,10 @@
 -dontwarn org.joda.time.**
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**
+-dontwarn java.beans.BeanInfo
+-dontwarn java.beans.FeatureDescriptor
+-dontwarn java.beans.IntrospectionException
+-dontwarn java.beans.Introspector
+-dontwarn java.beans.PropertyDescriptor
 -keep class com.google.crypto.tink.** { *; }
 -keep class com.google.api.client.** { *; }
