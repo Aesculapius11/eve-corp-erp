@@ -5,9 +5,9 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import com.evecorp.erp.Constants
+import com.evecorp.erp.MainActivity
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.data.local.DashboardPreferences
 import com.evecorp.erp.data.local.dao.IndustryJobDao
@@ -211,7 +211,8 @@ class AlertCheckReceiver : BroadcastReceiver() {
                 },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            scheduleExactAlarm(
+            scheduleAlarm(
+                context = context,
                 alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager,
                 triggerAtMillis = System.currentTimeMillis() + interval,
                 pendingIntent = pendingIntent
@@ -233,7 +234,8 @@ class AlertCheckReceiver : BroadcastReceiver() {
                 },
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            scheduleExactAlarm(
+            scheduleAlarm(
+                context = context,
                 alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager,
                 triggerAtMillis = System.currentTimeMillis() + interval,
                 pendingIntent = pendingIntent
@@ -274,24 +276,28 @@ class AlertCheckReceiver : BroadcastReceiver() {
             return minutes * 60_000L
         }
 
-        private fun scheduleExactAlarm(
+        private fun scheduleAlarm(
+            context: Context,
             alarmManager: AlarmManager,
             triggerAtMillis: Long,
             pendingIntent: PendingIntent
         ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
+            // AlarmClock is treated with the highest priority by many OEM ROMs and
+            // avoids exact-alarm permission issues on recent Android versions.
+            alarmManager.setAlarmClock(
+                AlarmManager.AlarmClockInfo(
                     triggerAtMillis,
-                    pendingIntent
-                )
-            } else {
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerAtMillis,
-                    pendingIntent
-                )
-            }
+                    PendingIntent.getActivity(
+                        context,
+                        0,
+                        Intent(context, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        },
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                ),
+                pendingIntent
+            )
         }
     }
 }

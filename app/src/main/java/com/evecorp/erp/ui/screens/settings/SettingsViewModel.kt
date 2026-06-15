@@ -1,9 +1,12 @@
 package com.evecorp.erp.ui.screens.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.evecorp.erp.auth.TokenManager
 import com.evecorp.erp.data.local.DashboardPreferences
+import com.evecorp.erp.notification.AlertCheckReceiver
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +25,7 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val tokenManager: TokenManager,
     private val dashboardPreferences: DashboardPreferences
 ) : ViewModel() {
@@ -45,11 +49,13 @@ class SettingsViewModel @Inject constructor(
     fun setSyncInterval(minutes: Int) {
         dashboardPreferences.setSyncIntervalMinutes(minutes)
         _uiState.value = _uiState.value.copy(syncInterval = minutes)
+        AlertCheckReceiver.scheduleNextSync(appContext)
     }
 
     fun setAlertInterval(minutes: Int) {
         dashboardPreferences.setAlertIntervalMinutes(minutes)
         _uiState.value = _uiState.value.copy(alertInterval = minutes)
+        AlertCheckReceiver.scheduleNextCheck(appContext)
     }
 
     fun logout() {
