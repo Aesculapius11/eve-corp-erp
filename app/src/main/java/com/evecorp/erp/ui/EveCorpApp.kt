@@ -1,12 +1,31 @@
 package com.evecorp.erp.ui
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -27,10 +46,10 @@ import com.evecorp.erp.ui.screens.dashboard.DashboardScreen
 import com.evecorp.erp.ui.screens.industry.IndustryScreen
 import com.evecorp.erp.ui.screens.login.LoginScreen
 import com.evecorp.erp.ui.screens.market.MarketScreen
+import com.evecorp.erp.ui.screens.profit.ProfitScreen
 import com.evecorp.erp.ui.screens.settings.SettingsScreen
 import com.evecorp.erp.ui.theme.ThemeManager
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EveCorpApp(
     esiAuthManager: EsiAuthManager,
@@ -56,7 +75,6 @@ fun EveCorpApp(
         }
     }
 
-    // 隐藏登录页的底部导航栏
     val showBottomBar = currentDestination?.route != Screen.LOGIN.route
 
     Scaffold(
@@ -86,13 +104,13 @@ fun EveCorpApp(
                             NavigationBarItem(
                                 icon = {
                                     Icon(
-                                        if (selected) screen.icon else screen.iconOutlined,
+                                        imageVector = if (selected) screen.icon else screen.iconOutlined,
                                         contentDescription = screen.label
                                     )
                                 },
                                 label = {
                                     Text(
-                                        screen.label,
+                                        text = screen.label,
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 },
@@ -145,6 +163,7 @@ fun EveCorpApp(
             composable(Screen.DASHBOARD.route) { DashboardScreen() }
             composable(Screen.INDUSTRY.route) { IndustryScreen() }
             composable(Screen.MARKET.route) { MarketScreen() }
+            composable(Screen.PROFIT.route) { ProfitScreen() }
             composable(Screen.SETTINGS.route) {
                 SettingsScreen(
                     onLogout = {

@@ -90,6 +90,7 @@ dependencies {
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("org.mozilla.geckoview:geckoview:140.0.20250616215311")
 
     // Room
     val roomVersion = "2.6.1"
