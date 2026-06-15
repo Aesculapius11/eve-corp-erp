@@ -5,7 +5,7 @@
         <domain includeSubdomains="true">ceve-industry.cn</domain>
         <domain includeSubdomains="true">www.ceve-industry.cn</domain>
         <domain includeSubdomains="true">connect.qq.com</domain>
-        <domain>8.210.18.81</domain>
-        <domain>121.40.173.235</domain>
+        <domain includeSubdomains="false">8.210.18.81</domain>
+        <domain includeSubdomains="false">121.40.173.235</domain>
     </domain-config>
 </network-security-config>
